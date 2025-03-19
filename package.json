@@ -1,0 +1,16 @@
+{
+    "name": "wrkdy-cli",
+    "version": "1.0.0",
+    "description": "Ein einfaches CLI-Tool für To-Dos",
+    "bin": {
+        "todo": "./index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js"
+    },
+    "devDependencies": {
+        "@types/node": "^22.13.10",
+        "typescript": "^5.0.0"
+    }
+}
