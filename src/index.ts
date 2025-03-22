@@ -3,17 +3,31 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 
+const CONFIG_PATH = path.join(require("os").homedir(), ".wrkdy", "wrkdy.config.json");
+const DEFAULT_CONFIG = { wrkdyPath: path.join(require("os").homedir(), "wrkdy") };
+
+function loadConfig() {
+    if (fs.existsSync(CONFIG_PATH)) {
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    } else {
+        fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 4), "utf8");
+        return DEFAULT_CONFIG;
+    }
+}
+
+const config = loadConfig();
+const TODO_PATH = path.join(config.wrkdyPath, "todo.md");
+if (!fs.existsSync(config.wrkdyPath)) {
+    fs.mkdirSync(config.wrkdyPath, { recursive: true });
+}
+
 const FILE_NAME = "todo.md";
 const MAIN_HEADER = "# TODO\n";
 const PLANNED_HEADER = "## Planned\n";
 const SCOPED_HEADER = "## Scoped\n";
 const PRIORITY_HEADER = "## Priority\n";
-const PRIORITY_SUBHEADERS: Record<string, string> = {
-    high: "### 🔴 High\n",
-    medium: "### 🟡 Medium\n",
-    low: "### 🟢 Low\n"
-};
-
+const DONE_HEADER = "--- \n## Done\n";
 const PRIORITY_ICONS: Record<string, string> = {
     high: "🔴",
     medium: "🟡",
@@ -21,115 +35,106 @@ const PRIORITY_ICONS: Record<string, string> = {
 };
 
 function writeToFile(content: string, scope?: string, dueDate?: string, priority?: string) {
-    const filePath = path.join(process.cwd(), FILE_NAME);
-    let fileContent = "";
-    let plannedTodos: string[] = [];
-    let generalTodos: string[] = [];
-    let scopedTodos: Record<string, string[]> = {};
-    let priorityTodos: Record<string, string[]> = { high: [], medium: [], low: [] };
-    
-    if (fs.existsSync(filePath)) {
-        fileContent = fs.readFileSync(filePath, "utf8");
-        const lines = fileContent.split("\n");
-        let currentSection = "";
-        let currentScope = "";
-        
-        for (const line of lines) {
-            if (line.startsWith("## ")) {
-                currentSection = line;
-                currentScope = "";
-                continue;
-            }
-            if (currentSection === SCOPED_HEADER.trim() && line.startsWith("### ")) {
-                currentScope = line.substring(4).trim();
-                scopedTodos[currentScope] = scopedTodos[currentScope] || [];
-                continue;
-            }
-            if (currentSection === PRIORITY_HEADER.trim()) {
-                for (const key of Object.keys(PRIORITY_SUBHEADERS)) {
-                    if (line.startsWith(PRIORITY_SUBHEADERS[key].trim())) {
-                        currentScope = key;
-                        priorityTodos[currentScope] = priorityTodos[currentScope] || [];
-                        break;
-                    }
-                }
-                continue;
-            }
-            if (line.startsWith("- [ ] ")) {
-                if (currentSection === PLANNED_HEADER.trim()) {
-                    plannedTodos.push(line);
-                } else if (currentSection === SCOPED_HEADER.trim() && currentScope) {
-                    scopedTodos[currentScope].push(line);
-                } else if (currentSection === PRIORITY_HEADER.trim() && currentScope) {
-                    priorityTodos[currentScope].push(line);
-                } else {
-                    generalTodos.push(line);
-                }
-            }
-        }
-    }
-    
+    let fileContent = fs.existsSync(TODO_PATH) ? fs.readFileSync(TODO_PATH, "utf8") : "";
     if (!fileContent.startsWith(MAIN_HEADER)) {
         fileContent = `${MAIN_HEADER}\n`;
     }
-    
+
     const priorityIcon = priority ? (PRIORITY_ICONS[priority] || "") + " " : "";
     const todoEntry = `- [ ] ${priorityIcon}${scope ? `[${scope}] ` : ""}${content}` + (dueDate ? ` 📅 ${dueDate}` : "");
     
+    const sections = parseFileContent(fileContent);
+
     if (priority) {
-        if (!priorityTodos[priority]) {
-            priorityTodos[priority] = [];
-        }
-        if (!priorityTodos[priority].includes(todoEntry)) {
-            priorityTodos[priority].push(todoEntry);
+        if (!sections.priority.includes(todoEntry)) {
+            sections.priority.push(todoEntry);
         }
     }
     if (scope) {
-        if (!scopedTodos[scope]) {
-            scopedTodos[scope] = [];
-        }
-        if (!scopedTodos[scope].includes(todoEntry)) {
-            scopedTodos[scope].push(todoEntry);
+        sections.scoped[scope] = sections.scoped[scope] || [];
+        if (!sections.scoped[scope].includes(todoEntry)) {
+            sections.scoped[scope].push(todoEntry);
         }
     }
     if (dueDate) {
-        if (!plannedTodos.includes(todoEntry)) {
-            plannedTodos.push(todoEntry);
+        if (!sections.planned.includes(todoEntry)) {
+            sections.planned.push(todoEntry);
         }
     } else if (!scope && !priority) {
-        if (!generalTodos.includes(todoEntry)) {
-            generalTodos.push(todoEntry);
+        if (!sections.general.includes(todoEntry)) {
+            sections.general.push(todoEntry);
         }
     }
     
-    plannedTodos.sort(compareDueDates);
-    for (const key of Object.keys(scopedTodos)) {
-        scopedTodos[key].sort(compareDueDates);
-    }
-    for (const key of Object.keys(priorityTodos)) {
-        priorityTodos[key].sort(compareDueDates);
+    sections.planned.sort(compareDueDates);
+    for (const key of Object.keys(sections.scoped)) {
+        sections.scoped[key].sort(compareDueDates);
     }
     
-    let updatedContent = `${MAIN_HEADER}\n${generalTodos.join("\n")}\n\n`;
-    if (plannedTodos.length > 0) {
-        updatedContent += `${PLANNED_HEADER}\n${plannedTodos.join("\n")}\n`;
-    }
-    if (Object.keys(scopedTodos).length > 0) {
-        updatedContent += `${SCOPED_HEADER}\n`;
-        for (const key of Object.keys(scopedTodos)) {
-            updatedContent += `### ${key}\n${scopedTodos[key].join("\n")}\n`;
+    fs.writeFileSync(TODO_PATH, generateUpdatedContent(sections), "utf8");
+}
+
+function parseFileContent(content: string) {
+    const sections = {
+        general: [] as string[],
+        planned: [] as string[],
+        scoped: {} as Record<string, string[]>,
+        priority: [] as string[],
+        done: [] as string[],
+    };
+
+    let currentSection = "";
+    let currentScope = "";
+    for (const line of content.split("\n")) {
+        if (line.startsWith("## ")) {
+            currentSection = line;
+            currentScope = "";
+            continue;
+        }
+        if (currentSection === SCOPED_HEADER.trim() && line.startsWith("### ")) {
+            currentScope = line.substring(4).trim();
+            sections.scoped[currentScope] = sections.scoped[currentScope] || [];
+            continue;
+        }
+        if (line.startsWith("- [ ] ")) {
+            if (currentSection === PLANNED_HEADER.trim()) {
+                sections.planned.push(line);
+            } else if (currentSection === SCOPED_HEADER.trim() && currentScope) {
+                sections.scoped[currentScope].push(line);
+            } else if (currentSection === PRIORITY_HEADER.trim()) {
+                sections.priority.push(line);
+            } else {
+                sections.general.push(line);
+            }
+        } else if (line.startsWith("- [x] ")) {
+            sections.done.push(line);
         }
     }
-    if (Object.keys(priorityTodos).some(key => priorityTodos[key].length > 0)) {
-        updatedContent += `${PRIORITY_HEADER}\n`;
-        for (const key of Object.keys(PRIORITY_SUBHEADERS)) {
-            if (priorityTodos[key].length > 0) {
-                updatedContent += `${PRIORITY_SUBHEADERS[key]}${priorityTodos[key].join("\n")}\n`;
+    return sections;
+}
+
+function generateUpdatedContent(sections: ReturnType<typeof parseFileContent>) {
+    let content = `${MAIN_HEADER}\n`;
+    content += `${sections.general.filter(item => !item.startsWith("- [x] ")).join("\n")}\n\n`;
+    if (sections.planned.length > 0) {
+        content += `${PLANNED_HEADER}\n${sections.planned.filter(item => !item.startsWith("- [x] ")).join("\n")}\n`;
+    }
+    if (Object.keys(sections.scoped).length > 0) {
+        content += `${SCOPED_HEADER}\n`;
+        for (const key of Object.keys(sections.scoped)) {
+            const scopedItems = sections.scoped[key].filter(item => !item.startsWith("- [x] "));
+            if (scopedItems.length > 0) {
+                content += `### ${key}\n${scopedItems.join("\n")}\n`;
             }
         }
     }
-    
-    fs.writeFileSync(filePath, updatedContent.trim() + "\n", "utf8");
+    if (sections.priority.length > 0) {
+        content += `${PRIORITY_HEADER}\n${sections.priority.filter(item => !item.startsWith("- [x] ")).join("\n")}\n`;
+    }
+    if (sections.done.length > 0) {
+        content += `${DONE_HEADER}\n${sections.done.join("\n")}\n`;
+    }
+    return content.trim() + "\n";
 }
 
 function compareDueDates(a: string, b: string): number {
@@ -184,5 +189,6 @@ function processInput(input: string) {
     writeToFile(todoText, scope || undefined, dueDate || undefined, priority || undefined);
     console.log("TODO gespeichert.");
 }
+
 
 askForInput();
