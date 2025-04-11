@@ -150,7 +150,7 @@ const rl = readline.createInterface({
 });
 
 function askForInput() {
-    rl.question("Enter TODO: ", (input) => {
+    rl.question("Enter command: ", (input) => {
         if (input.toLowerCase() === "exit") {
             rl.close();
             return;
@@ -160,35 +160,101 @@ function askForInput() {
     });
 }
 
-function processInput(input: string) {
-    const args = input.split(" ");
-    if (args[0] !== "TODO" || args.length < 2) return;
-    
-    let scope = "";
-    let dueDate = "";
-    let priority = "";
-    let todoText = "";
-    
-    while (args.length > 1) {
-        const arg = args[1];
-        args.shift();
-        if (arg === "-s" && args.length > 1) {
-            scope = args[1];
-            args.shift();
-        } else if (arg === "-d" && args.length > 1) {
-            dueDate = args[1];
-            args.shift();
-        } else if (arg === "-p" && args.length > 1) {
-            priority = args[1];
-            args.shift();
-        } else {
-            todoText += (todoText ? " " : "") + arg;
-        }
+function createJournalEntry() {
+    const journalDir = path.join(config.wrkdyPath, "journals");
+    if (!fs.existsSync(journalDir)) {
+        fs.mkdirSync(journalDir, { recursive: true });
     }
-    if (!todoText) return;
-    writeToFile(todoText, scope || undefined, dueDate || undefined, priority || undefined);
-    console.log("TODO gespeichert.");
+
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const fileName = `${today}.md`;
+    const journalPath = path.join(journalDir, fileName);
+
+    if (fs.existsSync(journalPath)) {
+        console.log(`Journal für heute (${today}) existiert bereits.`);
+    } else {
+        const frontmatter = generateFrontmatter(today, "journal");
+        const initialContent = `${frontmatter}# Journal Entry – ${today}\n\n`;
+        fs.writeFileSync(journalPath, initialContent, "utf8");
+        console.log(`Neuer Journal-Eintrag erstellt: ${journalPath}`);
+    }
 }
+
+function createPage(name: string) {
+    if (!name) {
+        console.log("Bitte einen Namen für die Seite angeben.");
+        return;
+    }
+
+    const pagesDir = path.join(config.wrkdyPath, "pages");
+    if (!fs.existsSync(pagesDir)) {
+        fs.mkdirSync(pagesDir, { recursive: true });
+    }
+
+    const safeFileName = name.replace(/[^a-z0-9-_]/gi, "_").toLowerCase();
+    const filePath = path.join(pagesDir, `${safeFileName}.md`);
+
+    if (fs.existsSync(filePath)) {
+        console.log(`Die Seite "${safeFileName}" existiert bereits.`);
+    } else {
+        const frontmatter = generateFrontmatter(safeFileName, "page");
+        const initialContent = `${frontmatter}# ${name}\n\n`;
+        fs.writeFileSync(filePath, initialContent, "utf8");
+        console.log(`Neue Seite erstellt: ${filePath}`);
+    }
+}
+
+
+
+function generateFrontmatter(title: string, contentType: "journal" | "page") {
+    const createdAt = new Date().toISOString();
+    return `---\ntitle: "${title}"\ncreatedAt: "${createdAt}"\ncontentType: "${contentType}"\n---\n\n`;
+}
+
+
+function processInput(input: string) {
+    const args = input.trim().split(" ");
+    const command = args.shift()?.toLowerCase();
+
+    if (command === "todo" && args.length > 0) {
+        let scope = "";
+        let dueDate = "";
+        let priority = "";
+        let todoText = "";
+
+        while (args.length > 0) {
+            const arg = args.shift();
+            if (arg === "-s" && args.length > 0) {
+                scope = args.shift()!;
+            } else if (arg === "-d" && args.length > 0) {
+                dueDate = args.shift()!;
+            } else if (arg === "-p" && args.length > 0) {
+                priority = args.shift()!;
+            } else {
+                todoText += (todoText ? " " : "") + arg;
+            }
+        }
+
+        if (!todoText) return;
+        writeToFile(todoText, scope || undefined, dueDate || undefined, priority || undefined);
+        console.log("TODO gespeichert.");
+    }
+
+    else if (command === "journal" && args[0] === "new") {
+        createJournalEntry();
+    }
+
+    else if (command === "page" && args[0] === "new" && args.length > 1) {
+        args.shift(); // remove 'new'
+        const pageName = args.join(" ");
+        createPage(pageName);
+    }
+
+    else {
+        console.log("Unbekannter Befehl.");
+    }
+}
+
 
 
 askForInput();
