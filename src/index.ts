@@ -174,7 +174,7 @@ function createJournalEntry() {
         console.log(`Journal für heute (${today}) existiert bereits.`);
     } else {
         const frontmatter = generateFrontmatter(today, "journal");
-        const initialContent = `${frontmatter}# Journal Entry – ${today}\n\n`;
+        const initialContent = `${frontmatter}# ${today}\n\n`;
         fs.writeFileSync(journalPath, initialContent, "utf8");
         console.log(`Neuer Journal-Eintrag erstellt: ${journalPath}`);
     }
