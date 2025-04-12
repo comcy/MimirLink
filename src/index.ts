@@ -2,9 +2,10 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import os from "os";
 
-const CONFIG_PATH = path.join(require("os").homedir(), ".wrkdy", "wrkdy.config.json");
-const DEFAULT_CONFIG = { wrkdyPath: path.join(require("os").homedir(), "wrkdy") };
+const CONFIG_PATH = path.join(os.homedir(), ".wrkdy", "wrkdy.config.json");
+const DEFAULT_CONFIG = { wrkdyPath: path.join(os.homedir(), "wrkdy") };
 
 function loadConfig() {
     if (fs.existsSync(CONFIG_PATH)) {
@@ -17,12 +18,11 @@ function loadConfig() {
 }
 
 const config = loadConfig();
-const TODO_PATH = path.join(config.wrkdyPath, "todo.md");
-if (!fs.existsSync(config.wrkdyPath)) {
-    fs.mkdirSync(config.wrkdyPath, { recursive: true });
-}
+const wrkdyPath = config.wrkdyPath;
+const TODO_PATH = path.join(wrkdyPath, "todo.md");
+const TAGS_JSON_PATH = path.join(wrkdyPath, ".wrkdy", "tags.json");
 
-const FILE_NAME = "todo.md";
+// const FILE_NAME = "todo.md";
 const MAIN_HEADER = "# TODO\n";
 const PLANNED_HEADER = "## Planned\n";
 const SCOPED_HEADER = "## Scoped\n";
@@ -42,7 +42,7 @@ function writeToFile(content: string, scope?: string, dueDate?: string, priority
 
     const priorityIcon = priority ? (PRIORITY_ICONS[priority] || "") + " " : "";
     const todoEntry = `- [ ] ${priorityIcon}${scope ? `[${scope}] ` : ""}${content}` + (dueDate ? ` 📅 ${dueDate}` : "");
-    
+
     const sections = parseFileContent(fileContent);
 
     if (priority) {
@@ -65,12 +65,12 @@ function writeToFile(content: string, scope?: string, dueDate?: string, priority
             sections.general.push(todoEntry);
         }
     }
-    
+
     sections.planned.sort(compareDueDates);
     for (const key of Object.keys(sections.scoped)) {
         sections.scoped[key].sort(compareDueDates);
     }
-    
+
     fs.writeFileSync(TODO_PATH, generateUpdatedContent(sections), "utf8");
 }
 
@@ -144,29 +144,87 @@ function compareDueDates(a: string, b: string): number {
     return new Date(matchA[1]).getTime() - new Date(matchB[1]).getTime();
 }
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+function extractTags(content: string): string[] {
+    const codeBlocks = [...content.matchAll(/```[\s\S]*?```/g)].map(m => m[0]);
+    let cleaned = content;
+    for (const block of codeBlocks) {
+        cleaned = cleaned.replace(block, "");
+    }
+    const matches = [...cleaned.matchAll(/(^|\s)(#[a-zA-Z0-9-_]+)/g)];
+    return [...new Set(matches.map(m => m[2].substring(1)))];
+}
 
-function askForInput() {
-    rl.question("Enter command: ", (input) => {
-        if (input.toLowerCase() === "exit") {
-            rl.close();
-            return;
+function renderWithLinkedTags(content: string): string {
+    const codeBlocks: [number, number][] = [];
+    const regex = /```[\s\S]*?```/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        codeBlocks.push([match.index, regex.lastIndex]);
+    }
+
+    return content.replace(/(#[a-zA-Z0-9-_]+)/g, (match, p1, offset) => {
+        if (codeBlocks.some(([start, end]) => offset >= start && offset < end)) {
+            return match; // ignore if inside code block
         }
-        processInput(input);
-        askForInput();
+        const tag = match.substring(1);
+        return `[${match}](pages/${tag}.md)`;
     });
 }
 
+function findMarkdownFiles(dir: string): string[] {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = entries.flatMap(entry => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory() && entry.name !== ".wrkdy") {
+            return findMarkdownFiles(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith(".md")) {
+            return [fullPath];
+        } else {
+            return [];
+        }
+    });
+    return files;
+}
+
+function syncTags() {
+    const tagsDir = path.join(wrkdyPath, ".wrkdy");
+    const tagMap: Record<string, { pages: string[], path: string }> = {};
+    const markdownFiles = findMarkdownFiles(wrkdyPath);
+
+    for (const file of markdownFiles) {
+        const relPath = path.relative(wrkdyPath, file).replace(/\\/g, "/");
+        const content = fs.readFileSync(file, "utf8");
+
+        const tags = extractTags(content);
+        const newContent = renderWithLinkedTags(content);
+        fs.writeFileSync(file, newContent, "utf8");
+
+        for (const tag of tags) {
+            if (!tagMap[tag]) {
+                const tagFilePath = `pages/${tag}.md`;
+                tagMap[tag] = {
+                    pages: [],
+                    path: tagFilePath
+                };
+            }
+            if (!tagMap[tag].pages.includes(relPath)) {
+                tagMap[tag].pages.push(relPath);
+            }
+        }
+    }
+
+    fs.mkdirSync(tagsDir, { recursive: true });
+    fs.writeFileSync(TAGS_JSON_PATH, JSON.stringify(tagMap, null, 2), "utf8");
+    console.log("Tags synchronisiert und verlinkt.");
+}
+
 function createJournalEntry() {
-    const journalDir = path.join(config.wrkdyPath, "journals");
+    const journalDir = path.join(wrkdyPath, "journals");
     if (!fs.existsSync(journalDir)) {
         fs.mkdirSync(journalDir, { recursive: true });
     }
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split("T")[0];
     const fileName = `${today}.md`;
     const journalPath = path.join(journalDir, fileName);
 
@@ -186,7 +244,7 @@ function createPage(name: string) {
         return;
     }
 
-    const pagesDir = path.join(config.wrkdyPath, "pages");
+    const pagesDir = path.join(wrkdyPath, "pages");
     if (!fs.existsSync(pagesDir)) {
         fs.mkdirSync(pagesDir, { recursive: true });
     }
@@ -204,13 +262,10 @@ function createPage(name: string) {
     }
 }
 
-
-
 function generateFrontmatter(title: string, contentType: "journal" | "page") {
     const createdAt = new Date().toISOString();
     return `---\ntitle: "${title}"\ncreatedAt: "${createdAt}"\ncontentType: "${contentType}"\n---\n\n`;
 }
-
 
 function processInput(input: string) {
     const args = input.trim().split(" ");
@@ -245,9 +300,13 @@ function processInput(input: string) {
     }
 
     else if (command === "page" && args[0] === "new" && args.length > 1) {
-        args.shift(); // remove 'new'
+        args.shift();
         const pageName = args.join(" ");
         createPage(pageName);
+    }
+
+    else if (command === "sync") {
+        syncTags();
     }
 
     else {
@@ -255,6 +314,20 @@ function processInput(input: string) {
     }
 }
 
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
+function askForInput() {
+    rl.question("Enter command: ", (input) => {
+        if (input.toLowerCase() === "exit") {
+            rl.close();
+            return;
+        }
+        processInput(input);
+        askForInput();
+    });
+}
 
 askForInput();
