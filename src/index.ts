@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import os from "os";
+import chokidar from "chokidar";
 
 const CONFIG_PATH = path.join(os.homedir(), ".wrkdy", "wrkdy.config.json");
 const DEFAULT_CONFIG = { wrkdyPath: path.join(os.homedir(), "wrkdy") };
@@ -33,6 +34,33 @@ const PRIORITY_ICONS: Record<string, string> = {
     medium: "🟡",
     low: "🟢"
 };
+
+// Watch-Setup
+function startWatchMode() {
+    const watcher = chokidar.watch(wrkdyPath, {
+        ignored: /(^|[\/\\])\../, // .wrkdy, .git etc.
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: true,
+        depth: 5
+    });
+
+    watcher.on("change", (path) => {
+        if (path.endsWith(".md")) {
+            console.log(`Änderung erkannt: ${path}`);
+            syncTags();
+        }
+    });
+
+    watcher.on("unlink", (path) => {
+        if (path.endsWith(".md")) {
+            console.log(`Datei gelöscht: ${path}`);
+            syncTags();
+        }
+    });
+
+    console.log("Watch-Modus aktiviert. Änderungen werden überwacht.");
+}
 
 function writeToFile(content: string, scope?: string, dueDate?: string, priority?: string) {
     let fileContent = fs.existsSync(TODO_PATH) ? fs.readFileSync(TODO_PATH, "utf8") : "";
@@ -361,6 +389,10 @@ function processInput(input: string) {
 
     else if (command === "sync") {
         syncTags();
+    }
+
+    else if (command === "watch") {
+        startWatchMode();
     }
 
     else {
