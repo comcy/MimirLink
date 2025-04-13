@@ -179,23 +179,24 @@ function renderWithLinkedTags(content: string, filePath: string): string {
         codeBlocks.push([match.index, regexCode.lastIndex]);
     }
 
-    // Bereits vorhandene Links speichern, damit wir sie ignorieren
-    const existingLinks = new Set<string>();
-    const linkPattern = /\[#([a-zA-Z0-9-_]+)\]\(pages\/[^)]+\)/g;
+    const existingLinks = new Set<number>();
+    const linkPattern = /\[#([a-zA-Z0-9-_]+)\]\((.*?)\)/g;
     while ((match = linkPattern.exec(content)) !== null) {
-        existingLinks.add(match.index.toString()); // merken wir uns den Index
+        existingLinks.add(match.index);
     }
 
     return content.replace(/(^|\s)(#[a-zA-Z0-9-_]+)/g, (fullMatch, leadingSpace, tag, offset) => {
         if (
             codeBlocks.some(([start, end]) => offset >= start && offset < end) ||
-            [...existingLinks].some(idx => parseInt(idx) === offset)
+            existingLinks.has(offset)
         ) {
-            return fullMatch; // Ignorieren
+            return fullMatch;
         }
 
         const tagName = tag.substring(1);
-        const relPath = path.relative(path.dirname(filePath), path.join(wrkdyPath, "pages", `${tagName}.md`)).replace(/\\/g, "/");
+        const isDate = /^\d{4}-\d{2}-\d{2}$/.test(tagName);
+        const targetDir = isDate ? "journals" : "pages";
+        const relPath = path.relative(path.dirname(filePath), path.join(wrkdyPath, targetDir, `${tagName}.md`)).replace(/\\/g, "/");
 
         return `${leadingSpace}[${tag}](./${relPath})`;
     });
@@ -230,7 +231,6 @@ function syncTags() {
         const relPath = path.relative(wrkdyPath, file).replace(/\\/g, "/");
         const content = fs.readFileSync(file, "utf8");
 
-        // Extrahiere sowohl Text-basierte als auch bereits verlinkte Tags
         const tagsFromLinks = extractTagsFromLinks(content);
         const tagsFromText = extractTags(content);
         const allTags = [...new Set([...tagsFromText, ...tagsFromLinks])];
@@ -239,17 +239,21 @@ function syncTags() {
         fs.writeFileSync(file, newContent, "utf8");
 
         for (const tag of allTags) {
+            const isDate = /^\d{4}-\d{2}-\d{2}$/.test(tag);
+            const targetDir = isDate ? "journals" : "pages";
+            const tagFilePath = `${targetDir}/${tag}.md`;
+
             if (!tagMap[tag]) {
-                const tagFilePath = `pages/${tag}.md`;
                 tagMap[tag] = {
                     pages: [],
                     path: tagFilePath
                 };
 
-                // Seite erzeugen, falls sie noch nicht existiert
-                const fullPath = path.join(wrkdyPath, tagFilePath);
-                if (!fs.existsSync(fullPath)) {
-                    createPage(tag);
+                // Statt createPage() → Journal-Funktion nutzen
+                if (isDate) {
+                    createJournalEntry(tag);
+                } else {
+                    createPage(tag, targetDir);
                 }
             }
 
@@ -266,33 +270,35 @@ function syncTags() {
 
 
 
-function createJournalEntry() {
+
+function createJournalEntry(date?: string) {
     const journalDir = path.join(wrkdyPath, "journals");
     if (!fs.existsSync(journalDir)) {
         fs.mkdirSync(journalDir, { recursive: true });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = date || new Date().toISOString().split("T")[0];
     const fileName = `${today}.md`;
     const journalPath = path.join(journalDir, fileName);
 
     if (fs.existsSync(journalPath)) {
-        console.log(`Journal für heute (${today}) existiert bereits.`);
+        console.log(`Journal für ${today} existiert bereits.`);
     } else {
         const frontmatter = generateFrontmatter(today, "journal");
         const initialContent = `${frontmatter}# ${today}\n\n`;
         fs.writeFileSync(journalPath, initialContent, "utf8");
-        console.log(`Neuer Journal-Eintrag erstellt: ${journalPath}`);
+        console.log(`Journal-Eintrag erstellt: ${journalPath}`);
     }
 }
 
-function createPage(name: string) {
+function createPage(name: string, customDir?: string) {
     if (!name) {
         console.log("Bitte einen Namen für die Seite angeben.");
         return;
     }
 
-    const pagesDir = path.join(wrkdyPath, "pages");
+    const baseDir = customDir || "pages";
+    const pagesDir = path.join(wrkdyPath, baseDir);
     if (!fs.existsSync(pagesDir)) {
         fs.mkdirSync(pagesDir, { recursive: true });
     }
@@ -306,7 +312,7 @@ function createPage(name: string) {
         const frontmatter = generateFrontmatter(safeFileName, "page");
         const initialContent = `${frontmatter}# ${name}\n\n`;
         fs.writeFileSync(filePath, initialContent, "utf8");
-        console.log(`Neue Seite erstellt: ${filePath}`);
+        console.log(`Seite erstellt: ${filePath}`);
     }
 }
 
