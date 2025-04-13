@@ -145,31 +145,63 @@ function compareDueDates(a: string, b: string): number {
 }
 
 function extractTags(content: string): string[] {
-    const codeBlocks = [...content.matchAll(/```[\s\S]*?```/g)].map(m => m[0]);
-    let cleaned = content;
+    // 1. Entferne Codeblöcke
+    const codeBlocks = [...content.matchAll(/```[\s\S]*?```/g)];
     for (const block of codeBlocks) {
-        cleaned = cleaned.replace(block, "");
+        content = content.replace(block[0], "");
     }
-    const matches = [...cleaned.matchAll(/(^|\s)(#[a-zA-Z0-9-_]+)/g)];
+
+    // 2. Entferne Links, bei denen der Linktext ein # enthält → z.B. [#tag](...)
+    const tagLinks = [...content.matchAll(/\[([^\]]*#[^\]]*)\]\([^)]+\)/g)];
+    for (const link of tagLinks) {
+        content = content.replace(link[0], "");
+    }
+
+    // 3. Extrahiere alle noch übrig gebliebenen #tags
+    const matches = [...content.matchAll(/(^|\s)(#[a-zA-Z0-9-_]+)/g)];
     return [...new Set(matches.map(m => m[2].substring(1)))];
 }
 
-function renderWithLinkedTags(content: string): string {
+
+function extractTagsFromLinks(content: string): string[] {
+    const matches = [...content.matchAll(/\[#[a-zA-Z0-9-_]+\]\(pages\/([a-zA-Z0-9-_]+)\.md\)/g)];
+    return [...new Set(matches.map(m => m[1]))];
+}
+
+
+
+function renderWithLinkedTags(content: string, filePath: string): string {
     const codeBlocks: [number, number][] = [];
-    const regex = /```[\s\S]*?```/g;
+    const regexCode = /```[\s\S]*?```/g;
     let match;
-    while ((match = regex.exec(content)) !== null) {
-        codeBlocks.push([match.index, regex.lastIndex]);
+
+    while ((match = regexCode.exec(content)) !== null) {
+        codeBlocks.push([match.index, regexCode.lastIndex]);
     }
 
-    return content.replace(/(#[a-zA-Z0-9-_]+)/g, (match, p1, offset) => {
-        if (codeBlocks.some(([start, end]) => offset >= start && offset < end)) {
-            return match; // ignore if inside code block
+    // Bereits vorhandene Links speichern, damit wir sie ignorieren
+    const existingLinks = new Set<string>();
+    const linkPattern = /\[#([a-zA-Z0-9-_]+)\]\(pages\/[^)]+\)/g;
+    while ((match = linkPattern.exec(content)) !== null) {
+        existingLinks.add(match.index.toString()); // merken wir uns den Index
+    }
+
+    return content.replace(/(^|\s)(#[a-zA-Z0-9-_]+)/g, (fullMatch, leadingSpace, tag, offset) => {
+        if (
+            codeBlocks.some(([start, end]) => offset >= start && offset < end) ||
+            [...existingLinks].some(idx => parseInt(idx) === offset)
+        ) {
+            return fullMatch; // Ignorieren
         }
-        const tag = match.substring(1);
-        return `[${match}](pages/${tag}.md)`;
+
+        const tagName = tag.substring(1);
+        const relPath = path.relative(path.dirname(filePath), path.join(wrkdyPath, "pages", `${tagName}.md`)).replace(/\\/g, "/");
+
+        return `${leadingSpace}[${tag}](./${relPath})`;
     });
 }
+
+
 
 function findMarkdownFiles(dir: string): string[] {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -188,25 +220,39 @@ function findMarkdownFiles(dir: string): string[] {
 
 function syncTags() {
     const tagsDir = path.join(wrkdyPath, ".wrkdy");
-    const tagMap: Record<string, { pages: string[], path: string }> = {};
     const markdownFiles = findMarkdownFiles(wrkdyPath);
+
+    const tagMap: Record<string, { pages: string[], path: string }> = fs.existsSync(TAGS_JSON_PATH)
+        ? JSON.parse(fs.readFileSync(TAGS_JSON_PATH, "utf8"))
+        : {};
 
     for (const file of markdownFiles) {
         const relPath = path.relative(wrkdyPath, file).replace(/\\/g, "/");
         const content = fs.readFileSync(file, "utf8");
 
-        const tags = extractTags(content);
-        const newContent = renderWithLinkedTags(content);
+        // Extrahiere sowohl Text-basierte als auch bereits verlinkte Tags
+        const tagsFromLinks = extractTagsFromLinks(content);
+        const tagsFromText = extractTags(content);
+        const allTags = [...new Set([...tagsFromText, ...tagsFromLinks])];
+
+        const newContent = renderWithLinkedTags(content, file);
         fs.writeFileSync(file, newContent, "utf8");
 
-        for (const tag of tags) {
+        for (const tag of allTags) {
             if (!tagMap[tag]) {
                 const tagFilePath = `pages/${tag}.md`;
                 tagMap[tag] = {
                     pages: [],
                     path: tagFilePath
                 };
+
+                // Seite erzeugen, falls sie noch nicht existiert
+                const fullPath = path.join(wrkdyPath, tagFilePath);
+                if (!fs.existsSync(fullPath)) {
+                    createPage(tag);
+                }
             }
+
             if (!tagMap[tag].pages.includes(relPath)) {
                 tagMap[tag].pages.push(relPath);
             }
@@ -217,6 +263,8 @@ function syncTags() {
     fs.writeFileSync(TAGS_JSON_PATH, JSON.stringify(tagMap, null, 2), "utf8");
     console.log("Tags synchronisiert und verlinkt.");
 }
+
+
 
 function createJournalEntry() {
     const journalDir = path.join(wrkdyPath, "journals");
