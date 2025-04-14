@@ -22,8 +22,6 @@ const config = loadConfig();
 const wrkdyPath = config.wrkdyPath;
 const TODO_PATH = path.join(wrkdyPath, "todo.md");
 const TAGS_JSON_PATH = path.join(wrkdyPath, ".wrkdy", "tags.json");
-
-// const FILE_NAME = "todo.md";
 const MAIN_HEADER = "# TODO\n";
 const PLANNED_HEADER = "## Planned\n";
 const SCOPED_HEADER = "## Scoped\n";
