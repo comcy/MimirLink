@@ -34,3 +34,8 @@ npm install
 npm run build
 
 npm run start
+
+### Open features
+
+- FOSS / 3rd party licensing
+
