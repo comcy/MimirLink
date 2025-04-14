@@ -8,13 +8,20 @@
     "scripts": {
         "init": "npm install && npm run build",
         "build": "tsc",
-        "start": "node dist/index.js"
+        "start": "node dist/index.js",
+        "view": "ts-node src/index.ts view"
     },
     "devDependencies": {
+        "@types/express": "^5.0.1",
         "@types/node": "^22.13.10",
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "chokidar": "^4.0.3"
+        "chokidar": "^4.0.3",
+        "express": "^5.1.0",
+        "highlight": "^0.2.4",
+        "highlight.js": "^11.11.1",
+        "marked": "^15.0.8",
+        "open": "^10.1.0"
     }
 }
