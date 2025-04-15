@@ -3,6 +3,7 @@
 import readline from "readline";
 import { syncTags } from "./notes";
 import { startWatchMode } from "./watcher";
+import { startViewMode } from "./view-server";
 import { writeToFile } from "./notes";
 import { 
     //createTodo, 
@@ -54,6 +55,10 @@ function processInput(input: string) {
 
     else if (command === "watch") {
         startWatchMode();
+    }
+
+    else if (command === "view") {
+        startViewMode();
     }
 
     else {

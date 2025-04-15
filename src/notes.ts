@@ -59,6 +59,7 @@ export function writeToFile(content: string, scope?: string, dueDate?: string, p
     fs.writeFileSync(TODO_PATH, generateUpdatedContent(sections), "utf8");
 }
 
+
 function parseFileContent(content: string) {
     const sections = {
         general: [] as string[],
@@ -98,6 +99,7 @@ function parseFileContent(content: string) {
     return sections;
 }
 
+
 function generateUpdatedContent(sections: ReturnType<typeof parseFileContent>) {
     let content = `${MAIN_HEADER}\n`;
     content += `${sections.general.filter(item => !item.startsWith("- [x] ")).join("\n")}\n\n`;
@@ -122,12 +124,14 @@ function generateUpdatedContent(sections: ReturnType<typeof parseFileContent>) {
     return content.trim() + "\n";
 }
 
+
 function compareDueDates(a: string, b: string): number {
     const matchA = a.match(/📅 (\d{4}-\d{2}-\d{2})/);
     const matchB = b.match(/📅 (\d{4}-\d{2}-\d{2})/);
     if (!matchA || !matchB) return 0;
     return new Date(matchA[1]).getTime() - new Date(matchB[1]).getTime();
 }
+
 
 function extractTags(content: string): string[] {
     // 1. Entferne Codeblöcke
@@ -152,7 +156,6 @@ function extractTagsFromLinks(content: string): string[] {
     const matches = [...content.matchAll(/\[#[a-zA-Z0-9-_]+\]\(pages\/([a-zA-Z0-9-_]+)\.md\)/g)];
     return [...new Set(matches.map(m => m[1]))];
 }
-
 
 
 function renderWithLinkedTags(content: string, filePath: string): string {
