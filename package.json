@@ -20,6 +20,7 @@
     "dependencies": {
         "chokidar": "^4.0.3",
         "express": "^5.1.0",
+        "gray-matter": "^4.0.3",
         "highlight": "^0.2.4",
         "highlight.js": "^11.11.1",
         "marked": "^15.0.8",
