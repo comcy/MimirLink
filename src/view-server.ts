@@ -54,20 +54,19 @@ export async function startViewMode(port = 3000) {
   
       const html = marked(fixedContent);
   
-      const frontMatterHtml = Object.entries(data).map(
-        ([key, value]) => `<tr><td><strong>${key}</strong></td><td>${value}</td></tr>`
-      ).join("");
-  
-      const styledFrontMatter = `
+      const frontMatterHtml = `
         <div class="front-matter">
-          <table style="font-size: 0.85em; margin-bottom: 1rem;">
-            ${frontMatterHtml}
-          </table>
-          <hr/>
+          ${Object.entries(data).map(
+            ([key, value]) => `
+              <div class="key">${key}</div>
+              <div class="value">${value}</div>
+            `
+          ).join("")}
         </div>
       `;
   
-      res.send(renderHTML(name, styledFrontMatter + html, toc));
+      res.send(renderHTML(name, frontMatterHtml + html, toc, type));
+
   
     // === FALL 2: Es ist ein Unterordner → zeige dessen .md-Dateien
     } else if (fs.existsSync(subDirPath) && fs.statSync(subDirPath).isDirectory()) {
@@ -77,7 +76,8 @@ export async function startViewMode(port = 3000) {
         return `<li><a href="/${type}/${name}/${base}">${base}</a></li>`;
       }).join("");
   
-      res.send(renderHTML(`${type}/${name}`, `<h2>Verzeichnis: ${type}/${name}</h2><ul>${subList}</ul>`, toc));
+      res.send(renderHTML(`${type}`, `<h2>Verzeichnis: ${type}</h2><ul>${toc}</ul>`, toc, type));
+
   
     } else {
       res.status(404).send("Datei nicht gefunden.");
@@ -111,7 +111,7 @@ function buildRecursiveToc(dir: string, baseUrl: string = ""): string {
 }
 
 
-function renderHTML(name: string, html: string, toc: string = ''): string {
+function renderHTML(name: string, html: string, toc: string = '', tocTitle: string = 'Inhalt'): string {
   return `
   <html>
     <head>
@@ -159,15 +159,33 @@ function renderHTML(name: string, html: string, toc: string = ''): string {
           font-weight: bold;
         }
         .front-matter {
+          display: grid;
+          grid-template-columns: max-content 1fr;
+          gap: 0.3rem 1rem;
           font-size: 0.85rem;
-          color: #555;
-          // margin-bottom: 1rem;
-          // border-left: 4px solid #ccc;
-          // padding-left: 1rem;
+          color: #666;
+          margin-bottom: 1rem;
+          background: #eee;
+          padding: 8px;
         }
-        .front-matter div {
-          margin-bottom: 0.3rem;
+
+        .front-matter .key {
+          font-weight: bold;
+          text-align: right;
         }
+
+        .front-matter .value {
+          text-align: left;
+          word-break: break-word;
+        }
+
+        hr {
+          border: none;
+          border-top: 1px solid #e0e0e0;
+          margin: 1.5rem 0;
+        }
+
+
       </style>
       <script>
         const ws = new WebSocket("ws://" + location.host);
@@ -178,7 +196,7 @@ function renderHTML(name: string, html: string, toc: string = ''): string {
     </head>
     <body>
       <nav>
-        <h3>📂 Inhalt</h3>
+        <h3>📂 ${tocTitle}</h3>
         <ul>${toc}</ul>
       </nav>
       <main class="markdown-body">
