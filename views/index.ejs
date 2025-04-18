@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown Graph</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <h1>Markdown Link-Graph</h1>
+    <div id="graph-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.19.1/cytoscape.min.js"></script>
+    <script>
+      const elements = <%- elements %>;
+
+      const cy = cytoscape({
+        container: document.getElementById('graph-container'),
+        elements: elements,
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': '#666',
+              'label': 'data(id)',
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 2,
+              'line-color': '#ccc',
+            }
+          }
+        ],
+        layout: {
+          name: 'breadthfirst',
+          directed: true
+        }
+      });
+    </script>
+  </body>
+</html>
