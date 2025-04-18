@@ -16,3 +16,5 @@ export function loadConfig() {
         return DEFAULT_CONFIG;
     }
 }
+
+export const wrkdyPath = loadConfig().wrkdyPath;

@@ -4,7 +4,7 @@ import readline from "readline";
 import { syncTags } from "./notes";
 import { startWatchMode } from "./watcher";
 import { startViewMode } from "./view-server";
-import { generateStaticSite } from "./view-static";
+import { startStaticSiteGeneration } from "./view-static";
 import { writeToFile } from "./notes";
 import { 
     //createTodo, 
@@ -63,7 +63,7 @@ function processInput(input: string) {
     }    
     
     else if (command === "static") {
-        generateStaticSite();
+        startStaticSiteGeneration();
     }
 
     else {
