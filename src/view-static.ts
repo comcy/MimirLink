@@ -3,85 +3,129 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { marked } from "marked";
-import { loadConfig } from "./config";
+import { wrkdyPath } from "./config";
 
-// Ordner innerhalb des Arbeitsverzeichnisses
-const config = loadConfig();
-const wrkdyPath = config.wrkdyPath;
-const templateDir = path.join(wrkdyPath, ".wrkdy", "templates");
-const styleDir = path.join(wrkdyPath, ".wrkdy", "styles");
 const outputDir = path.join(wrkdyPath, "public");
+const templatePath = path.join(wrkdyPath, ".wrkdy", "templates", "page.html");
+const stylePath = path.join(wrkdyPath, ".wrkdy", "styles", "style.css");
 
-// Lade HTML Template
-const template = fs.readFileSync(path.join(templateDir, "page.html"), "utf8");
+const template = fs.readFileSync(templatePath, "utf8");
+const customCSS = fs.readFileSync(stylePath, "utf8");
 
-// Optional: Stylesheet
-const customCSS = fs.existsSync(path.join(styleDir, "custom.css"))
-  ? fs.readFileSync(path.join(styleDir, "custom.css"), "utf8")
-  : "";
-
-// HTML Escaping für einfache Titel/Strings
 function escapeHTML(str: string): string {
-  return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return str.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
 }
 
-// Hilfsfunktion: Inhalt rendern und Datei schreiben
-function renderMarkdownToHTML(inputPath: string, outputPath: string, relPath: string) {
-  const raw = fs.readFileSync(inputPath, "utf8");
-  const { content, data } = matter(raw);
-  const html = marked(content);
 
-  const frontMatter = Object.entries(data)
-    .map(([k, v]) => `<div class="meta"><span class="key">${escapeHTML(k)}:</span> <span class="value">${escapeHTML(String(v))}</span></div>`)
-    .join("");
+function buildTOC(dirPath: string, relUrlPath: string): string {
+  const items = fs.readdirSync(dirPath)
+    .filter(f => f.endsWith(".md") || fs.statSync(path.join(dirPath, f)).isDirectory())
+    .map(f => {
+      const filePath = path.join(dirPath, f);
+      const isDir = fs.statSync(filePath).isDirectory();
+      const name = f.replace(/\.md$/, "");
 
-  const fullHtml = template
-    .replace("{{title}}", escapeHTML(data.title || path.basename(inputPath, ".md")))
-    .replace("{{content}}", `<div class="front-matter">${frontMatter}</div><hr/>${html}`)
+      const href = isDir
+        ? `${name}/index.html`
+        : `${name}.html`;
+
+      return `<li><a href="${href}">${name}</a></li>`;
+    });
+
+  return `<ul>${items.join("")}</ul>`;
+}
+
+
+function buildBreadcrumb(relPath: string): string {
+  if (!relPath) return `<a href="index.html">🏠 Startseite</a>`;
+
+  const parts = relPath.split(path.sep);
+  const links = parts.map((part, i) => {
+    const subPath = parts.slice(0, i + 1).join("/");
+    return `<a href="${"./".repeat(parts.length - i - 1)}${subPath}/index.html">${part}</a>`;
+  });
+
+
+  return `<nav class="breadcrumbs"><a href="index.html">🏠 Startseite</a> / ${links.join(" / ")}</nav>`;
+}
+
+function renderPage(title: string, content: string, toc: string, folderTitle: string = "Inhalt"): string {
+  return template
+    .replace("{{title}}", escapeHTML(title))
     .replace("{{styles}}", `<style>${customCSS}</style>`)
-    .replace("{{toc}}", `<p><a href="/index.html">🔙 Übersicht</a></p>`);
-
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, fullHtml);
+    .replace("{{tocTitle}}", folderTitle)
+    .replace("{{toc}}", toc)
+    .replace("{{content}}", content);
 }
 
-// Rekursiv durchlaufen
-function walkDir(dir: string, relBase: string = "") {
-  const items = fs.readdirSync(dir, { withFileTypes: true });
+function renderMarkdownToHTML(inputPath: string, relDirPath: string, fileName: string) {
+  const rawContent = fs.readFileSync(inputPath, "utf8");
+  const { content, data } = matter(rawContent);
+  const html = marked.parse(content);
+
+  const frontMatter = Object.entries(data).map(
+    ([key, value]) => `<div class="meta"><strong>${key}</strong>: ${value}</div>`
+  ).join("");
+
+  const toc = buildTOC(path.join(wrkdyPath, relDirPath), relDirPath);
+  const breadcrumb = buildBreadcrumb(path.join(relDirPath, fileName.replace(/\.md$/, "")));
+
+  const pageHtml = renderPage(
+    data.title || fileName.replace(/\.md$/, ""),
+    `${breadcrumb}<div class="front-matter">${frontMatter}</div><hr/>${html}`,
+    toc,
+    path.basename(relDirPath || ".")
+  );
+
+  const outputPath = path.join(outputDir, relDirPath, `${fileName.replace(/\.md$/, ".html")}`);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, pageHtml);
+}
+
+function renderDirectoryIndex(relDirPath: string) {
+  const absDir = path.join(wrkdyPath, relDirPath);
+  const toc = buildTOC(absDir, relDirPath);
+  const breadcrumb = buildBreadcrumb(relDirPath);
+
+  const content = `<h2>Verzeichnis: ${relDirPath || "Startseite"}</h2>${breadcrumb}<ul>${toc}</ul>`;
+  const pageHtml = renderPage(relDirPath || "Startseite", content, toc, path.basename(relDirPath || "."));
+
+  const indexPath = path.join(outputDir, relDirPath, "index.html");
+  fs.mkdirSync(path.dirname(indexPath), { recursive: true });
+  fs.writeFileSync(indexPath, pageHtml);
+}
+
+function generateStaticSite(dir: string, relDir: string = "") {
+  const absDir = path.join(dir, relDir);
+  const items = fs.readdirSync(absDir).filter(item => item !== "public");
+
+
+  renderDirectoryIndex(relDir);
 
   for (const item of items) {
-    const fullPath = path.join(dir, item.name);
-    const relPath = path.join(relBase, item.name);
+    const absPath = path.join(absDir, item);
+    const relPath = path.join(relDir, item);
 
-    if (item.isDirectory()) {
-      walkDir(fullPath, relPath);
-    } else if (item.isFile() && item.name.endsWith(".md")) {
-      const outputPath = path.join(outputDir, relBase, item.name.replace(/\.md$/, ".html"));
-      renderMarkdownToHTML(fullPath, outputPath, relPath);
+    if (fs.statSync(absPath).isDirectory()) {
+      generateStaticSite(dir, relPath);
+    } else if (item.endsWith(".md")) {
+      renderMarkdownToHTML(absPath, relDir, item);
     }
   }
 }
 
-// Start
-export function generateStaticSite() {
-  if (!fs.existsSync(wrkdyPath)) throw new Error("wrkdyPath nicht gefunden.");
-  fs.rmSync(outputDir, { recursive: true, force: true }); // vorheriges löschen
+export function startStaticSiteGeneration() {
+
+  // Starte die Generierung
+  fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
+  generateStaticSite(wrkdyPath, "");
 
-  // Generiere Index
-  const folders = fs.readdirSync(wrkdyPath, { withFileTypes: true })
-    .filter(entry => entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "public")
-    .map(entry => `<li><a href="${entry.name}/index.html">${entry.name}</a></li>`)
-    .join("");
+  console.log("✅ Statische Seiten generiert in:", outputDir);
 
-  const indexHtml = template
-    .replace("{{title}}", "Startseite")
-    .replace("{{content}}", `<h1>Inhalte</h1><ul>${folders}</ul>`)
-    .replace("{{styles}}", `<style>${customCSS}</style>`)
-    .replace("{{toc}}", "");
-
-  fs.writeFileSync(path.join(outputDir, "index.html"), indexHtml);
-
-  // Durchlaufe alle Inhalte
-  walkDir(wrkdyPath);
 }
+
