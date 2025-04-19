@@ -1,28 +1,38 @@
 {
     "name": "wrkdy-cli",
     "version": "1.0.0",
+    "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
-        "todo": "./index.js"
+        "wrkdy": "./dist/index.js"
     },
     "scripts": {
         "init": "npm install && npm run build",
-        "build": "tsc",
+        "build:tsc": "tsc",
+        "build": "vite build",
         "start": "node dist/index.js",
+        "start:dev": "tsx src/index.ts",
+        "watch": "nodemon",
         "view": "ts-node src/index.ts view"
     },
     "devDependencies": {
         "@types/express": "^5.0.1",
         "@types/node": "^22.14.1",
+        "nodemon": "^3.1.9",
         "ts-node": "^10.9.2",
-        "typescript": "^5.0.0"
+        "tsx": "^4.19.3",
+        "typescript": "^5.8.3",
+        "vite": "^6.3.2"
     },
     "dependencies": {
+        "@types/chalk": "^0.4.31",
+        "chalk": "^5.4.1",
         "chokidar": "^4.0.3",
         "express": "^5.1.0",
         "gray-matter": "^4.0.3",
         "highlight": "^0.2.4",
         "highlight.js": "^11.11.1",
+        "inquirer": "^12.5.2",
         "marked": "^15.0.8",
         "open": "^8.4.2"
     }
