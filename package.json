@@ -9,17 +9,17 @@
     "scripts": {
         "init": "npm install && npm run build",
         "build:tsc": "tsc",
-        "build": "vite build",
+        "build": "tsup",
         "start": "node dist/index.js",
         "start:dev": "tsx src/index.ts",
-        "watch": "nodemon",
-        "view": "ts-node src/index.ts view"
+        "watch": "nodemon"
     },
     "devDependencies": {
         "@types/express": "^5.0.1",
         "@types/node": "^22.14.1",
         "nodemon": "^3.1.9",
         "ts-node": "^10.9.2",
+        "tsup": "^8.4.0",
         "tsx": "^4.19.3",
         "typescript": "^5.8.3",
         "vite": "^6.3.2"

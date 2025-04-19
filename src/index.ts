@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 import readline from "readline";
-import { syncTags } from "./notes";
 import { startWatchMode } from "./watcher";
 import { startViewMode } from "./view-server";
 import { startStaticSiteGeneration } from "./view-static";
-import { writeToFile } from "./notes";
+import { interactiveSearch } from "./search-interactive";
 import { 
-    //createTodo, 
+    syncTags,
     createPage, 
-    createJournalEntry 
+    createJournalEntry, 
+    writeToFile 
 } from "./notes";
 
 function processInput(input: string) {
@@ -64,6 +64,10 @@ function processInput(input: string) {
     
     else if (command === "static") {
         startStaticSiteGeneration();
+    }
+
+    else if (command === "searchi") {
+        interactiveSearch();
     }
 
     else {
