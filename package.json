@@ -1,10 +1,10 @@
 {
-    "name": "wrkdy-cli",
+    "name": "mimirlink",
     "version": "1.0.0",
     "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
-        "wrkdy": "./dist/index.js"
+        "ygg": "./dist/index.js"
     },
     "scripts": {
         "init": "npm install && npm run build",
