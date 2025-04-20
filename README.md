@@ -1,4 +1,7 @@
-# wrkdy-cli
+# ᛗᛁᛗᛁᚱᛚᛁᚾᚲ
+# M I M I R L I N K
+
+# MímirLink
 A CLI all along the working day.
 
 ## Features
