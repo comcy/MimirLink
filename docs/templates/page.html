@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{title}}</title>
+    {{styles}}
+  </head>
+  
+  <body>
+    <div class="layout">
+        <h1>
+            <a href="">HOM</a>E</a></h1>
+        <div class="toc">
+            <input type="search" id="searchInput" placeholder="🔍 Suchen..." style="width: 100%; padding: 5px; margin-bottom: 10px;" />
+            <h2>{{tocTitle}}</h2>
+            <div id="toc-container">
+                {{toc}}
+            </div>
+        </div>
+
+        <script>
+            const input = document.getElementById('searchInput');
+            const tocContainer = document.getElementById('toc-container');
+
+            input?.addEventListener('input', function () {
+                const filter = this.value.toLowerCase();
+                tocContainer?.querySelectorAll("li").forEach(li => {
+                const text = li.textContent.toLowerCase();
+                li.style.display = text.includes(filter) ? "" : "none";
+                });
+            });
+        </script>
+
+      </aside>
+      <main class="content">{{content}}</main>
+    </div>
+  </body>
+</html>
