@@ -1,7 +1,7 @@
 # ᛗᛁᛗᛁᚱᛚᛁᚾᚲ
-# M I M I R L I N K
+## M I M I R L I N K
 
-# MímirLink
+### MímirLink
 A CLI all along the working day.
 
 ## Features
