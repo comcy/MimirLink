@@ -1,3 +1,7 @@
 {
-    "wrkdyPath": "~/wrkdy"
+    "wrkdyPath": "~/wrkdy",
+    "editor": {
+        "name": "Visual Studio Code",
+        "customCommand": "code"
+    }
 }

@@ -18,3 +18,7 @@ export function loadConfig() {
 }
 
 export const wrkdyPath = loadConfig().wrkdyPath;
+export const customEditorCommand = loadConfig().editor.customEditorCommand || "code";
+
+console.log(`🔧 Konfiguration geladen: ${JSON.stringify(loadConfig(), null, 4)}`);
+console.log(`🔧 Editor config: ${customEditorCommand}`);
