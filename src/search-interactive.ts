@@ -3,7 +3,7 @@ import path from "path";
 import readline from "readline";
 import inquirer from "inquirer";
 import chalk from "chalk";
-import { wrkdyPath } from "./config";
+import { customEditorCommand, wrkdyPath } from "./config";
 
 function isMarkdown(file: string) {
   return file.endsWith(".md");
@@ -93,7 +93,10 @@ export async function interactiveSearch() {
   if (open) {
     const platform = process.platform;
     const { exec } = await import("child_process");
-    if (platform === "win32") {
+    if (customEditorCommand) {
+      exec(`${customEditorCommand} "${selectedFile}"`);
+    }
+    else if (platform === "win32") {
       exec(`start "" "${selectedFile}"`);
     } else if (platform === "darwin") {
       exec(`open "${selectedFile}"`);
