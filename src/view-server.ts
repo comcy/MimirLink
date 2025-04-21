@@ -3,7 +3,7 @@ import express, { Express } from "express";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import { loadConfig } from "./config";
+import { WORKSPACE } from "./config";
 import matter from "gray-matter";
 
 
@@ -11,16 +11,16 @@ export async function startViewMode(port = 3000) {
   
   const open = (await import("open")).default;
   const app: Express = express();
-  const config = loadConfig();
 
-  app.use("/static", express.static(config.wrkdyPath));
+
+  app.use("/static", express.static(WORKSPACE));
 
   // app.get("/", (req, res) => {
   //   res.redirect("/pages/index");
   // });
 
   app.get("/", (req: any, res: any) => {
-    const folders = fs.readdirSync(config.wrkdyPath, { withFileTypes: true })
+    const folders = fs.readdirSync(WORKSPACE, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => `<li><a href="/${entry.name}">${entry.name}</a></li>`)
       .join("");
@@ -30,7 +30,7 @@ export async function startViewMode(port = 3000) {
 
   app.get("/:type/:name", (req: any, res: any) => {
     const { type, name } = req.params;
-    const dirPath = path.join(config.wrkdyPath, type);
+    const dirPath = path.join(WORKSPACE, type);
     const filePath = path.join(dirPath, `${name}.md`);
     const subDirPath = path.join(dirPath, name);
   

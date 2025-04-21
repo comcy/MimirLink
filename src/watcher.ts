@@ -1,12 +1,10 @@
 import chokidar from "chokidar";
 import { syncTags } from "./notes";
-import { loadConfig } from "./config";
-
-const config = loadConfig();
+import { WORKSPACE } from "./config";
 
 export function startWatchMode() {
-    const watcher = chokidar.watch(config.wrkdyPath, {
-        ignored: /(^|[\/\\])\../, // ignoriert versteckte Dateien wie .git, .wrkdy
+    const watcher = chokidar.watch(WORKSPACE, {
+        ignored: /(^|[\/\\])\../, // ignore dotfiles
         persistent: true,
         ignoreInitial: true,
         awaitWriteFinish: true,

@@ -4,9 +4,9 @@ import path from "path";
 import { loadConfig } from './config';
 
 const config = loadConfig();
-const wrkdyPath = config.wrkdyPath;
-const TODO_PATH = path.join(wrkdyPath, "todo.md");
-const TAGS_JSON_PATH = path.join(wrkdyPath, ".wrkdy", "tags.json");
+const workspace = config.workspace;
+const TODO_PATH = path.join(workspace, "todo.md");
+const TAGS_JSON_PATH = path.join(workspace, ".mimirlink", "tags.json");
 const MAIN_HEADER = "# TODO\n";
 const PLANNED_HEADER = "## Planned\n";
 const SCOPED_HEADER = "## Scoped\n";
@@ -184,7 +184,7 @@ function renderWithLinkedTags(content: string, filePath: string): string {
         const tagName = tag.substring(1);
         const isDate = /^\d{4}-\d{2}-\d{2}$/.test(tagName);
         const targetDir = isDate ? "journals" : "pages";
-        const relPath = path.relative(path.dirname(filePath), path.join(wrkdyPath, targetDir, `${tagName}.md`)).replace(/\\/g, "/");
+        const relPath = path.relative(path.dirname(filePath), path.join(workspace, targetDir, `${tagName}.md`)).replace(/\\/g, "/");
 
         return `${leadingSpace}[${tag}](./${relPath})`;
     });
@@ -196,7 +196,7 @@ function findMarkdownFiles(dir: string): string[] {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = entries.flatMap(entry => {
         const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory() && entry.name !== ".wrkdy") {
+        if (entry.isDirectory() && entry.name !== ".mimirlink") {
             return findMarkdownFiles(fullPath);
         } else if (entry.isFile() && entry.name.endsWith(".md")) {
             return [fullPath];
@@ -208,15 +208,15 @@ function findMarkdownFiles(dir: string): string[] {
 }
 
 export function syncTags() {
-    const tagsDir = path.join(wrkdyPath, ".wrkdy");
-    const markdownFiles = findMarkdownFiles(wrkdyPath);
+    const tagsDir = path.join(workspace, ".mimirlink");
+    const markdownFiles = findMarkdownFiles(workspace);
 
     const tagMap: Record<string, { pages: string[], path: string }> = fs.existsSync(TAGS_JSON_PATH)
         ? JSON.parse(fs.readFileSync(TAGS_JSON_PATH, "utf8"))
         : {};
 
     for (const file of markdownFiles) {
-        const relPath = path.relative(wrkdyPath, file).replace(/\\/g, "/");
+        const relPath = path.relative(workspace, file).replace(/\\/g, "/");
         const content = fs.readFileSync(file, "utf8");
 
         const tagsFromLinks = extractTagsFromLinks(content);
@@ -258,7 +258,7 @@ export function syncTags() {
 
 
 export function createJournalEntry(date?: string) {
-    const journalDir = path.join(wrkdyPath, "journals");
+    const journalDir = path.join(workspace, "journals");
     if (!fs.existsSync(journalDir)) {
         fs.mkdirSync(journalDir, { recursive: true });
     }
@@ -284,7 +284,7 @@ export function createPage(name: string, customDir?: string) {
     }
 
     const baseDir = customDir || "pages";
-    const pagesDir = path.join(wrkdyPath, baseDir);
+    const pagesDir = path.join(workspace, baseDir);
     if (!fs.existsSync(pagesDir)) {
         fs.mkdirSync(pagesDir, { recursive: true });
     }

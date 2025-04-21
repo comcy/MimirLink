@@ -4,10 +4,13 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const CONFIG_PATH = path.join(os.homedir(), ".wrkdy", "wrkdy.config.json");
-const DEFAULT_CONFIG = { wrkdyPath: path.join(os.homedir(), "wrkdy") };
+const CONFIG_PATH = path.join(os.homedir(), ".mimirlink", "mimirlink.config.json");
+const DEFAULT_CONFIG: Config = { workspace: path.join(os.homedir(), "mimirlink") };
 
-export function loadConfig() {
+export const WORKSPACE = loadConfig().workspace;
+export const CONFIG: Config = loadConfig();
+
+export function loadConfig(): Config {
     if (fs.existsSync(CONFIG_PATH)) {
         return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     } else {
@@ -17,8 +20,16 @@ export function loadConfig() {
     }
 }
 
-export const wrkdyPath = loadConfig().wrkdyPath;
-export const customEditorCommand = loadConfig().editor.customEditorCommand || "code";
+interface Config {
+    workspace: string;
+    editor?: ConfigEntry
+}
+
+interface ConfigEntry {
+    name: string;
+    value: string;
+}
+
 
 console.log(`🔧 Konfiguration geladen: ${JSON.stringify(loadConfig(), null, 4)}`);
-console.log(`🔧 Editor config: ${customEditorCommand}`);
+console.log(`🔧 Editor config: ${JSON.stringify(loadConfig().editor, null, 4)}`);

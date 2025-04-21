@@ -30,7 +30,7 @@ Tools and workflows side by side.
 
 npm install -g
 
-wrkdy
+ygg
 
 ### Command Mode
 

@@ -3,7 +3,7 @@ import path from "path";
 import readline from "readline";
 import inquirer from "inquirer";
 import chalk from "chalk";
-import { customEditorCommand, wrkdyPath } from "./config";
+import { CONFIG, WORKSPACE } from "./config";
 
 function isMarkdown(file: string) {
   return file.endsWith(".md");
@@ -54,7 +54,7 @@ export async function interactiveSearch() {
     return;
   }
 
-  const allFiles = walkMarkdownFiles(wrkdyPath);
+  const allFiles = walkMarkdownFiles(WORKSPACE);
   let allMatches: { file: string, line: number, preview: string }[] = [];
 
   for (const file of allFiles) {
@@ -67,7 +67,7 @@ export async function interactiveSearch() {
   }
 
   const choices = allMatches.map((match) => ({
-    name: `${chalk.cyan(path.relative(wrkdyPath, match.file))}:${chalk.gray(match.line)} → ${chalk.yellow(match.preview)}`,
+    name: `${chalk.cyan(path.relative(WORKSPACE, match.file))}:${chalk.gray(match.line)} → ${chalk.yellow(match.preview)}`,
     value: match.file
   }));
 
@@ -93,8 +93,8 @@ export async function interactiveSearch() {
   if (open) {
     const platform = process.platform;
     const { exec } = await import("child_process");
-    if (customEditorCommand) {
-      exec(`${customEditorCommand} "${selectedFile}"`);
+    if (CONFIG.editor?.value) {
+      exec(`${CONFIG.editor?.value} "${selectedFile}"`);
     }
     else if (platform === "win32") {
       exec(`start "" "${selectedFile}"`);

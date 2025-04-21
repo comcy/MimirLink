@@ -1,7 +1,7 @@
 {
-    "wrkdyPath": "~/wrkdy",
+    "workspace": "~/mimirlink",
     "editor": {
         "name": "Visual Studio Code",
-        "customCommand": "code"
+        "value": "code"
     }
 }
