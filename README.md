@@ -11,20 +11,50 @@ Tools and workflows side by side.
 
 ## Current Features
 
-### Note types
+### Workspace structure
+```
+.mimirlink/
+├── .ygg/
+│   ├── templates/
+│   |    └── page.html
+|   └── styles/
+│       └── style.css
+├── journals/
+│   ├── 2024-04-20.md
+│   ├── 2024-04-21.md
+│   └── ...
+├── pages/
+│   ├── test.md
+│   ├── sample.md
+│   └── ...
+└── TODO.md
+
+```
+
+#### Note types
 
 - Journals
+  `journal new [name]?` 
+  - creates a new journal page for today (if not already existing)
+  - `[name]` (optional) can create journal pages for a given date
 - Pages
+    `page new [name]!` 
+  - creates a new page with the provided name
+  - `[name]` creates the page with the provided name
 - TODOs
+  - `todo [text] -s [scope] -d [date] -p [priority]`   
 
-### Workflows
+#### Workflow facilitation
 
-- sync
-- watch mode
-- asset management?
-- preview?
-- graph for connections?
-  - mindmapping features / brainstorm features: batch Verarbeitung für buzzwords
+- `#tags`
+  - tags are easy to use references for anything you like
+  - if a tag is not already existing it will be a new page created with the tags name after a `sync`
+- `sync`
+  - provides the power to resolved references set by `#tags` from markdown files to other markdown files
+  - each tag is represented by a single markdown file if a `#tag` is not formarly existing a new page is created 
+  - tags are written into the 
+- `watch`
+  - you can run the application in a `watch` mode which automates the `sync` command by observing file changes within the workspace
 
 ## Usage
 

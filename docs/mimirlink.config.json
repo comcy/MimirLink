@@ -1,5 +1,5 @@
 {
-    "workspace": "~/mimirlink",
+    "workspace": "/home/cy/mimirlink",
     "editor": {
         "name": "Visual Studio Code",
         "value": "code"
