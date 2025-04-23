@@ -1,18 +1,27 @@
 #!/usr/bin/env node
 
 import readline from "readline";
-import { startWatchMode } from "./watcher";
+import { DependencyInjectionContainer } from "./base/dependency-injection-container";
+import {
+    createJournalEntry,
+    createPage,
+    syncTags,
+    writeToFile
+} from "./notes";
+import { interactiveSearch } from "./search-interactive";
 import { startViewMode } from "./view-server";
 import { startStaticSiteGeneration } from "./view-static";
-import { interactiveSearch } from "./search-interactive";
-import { 
-    syncTags,
-    createPage, 
-    createJournalEntry, 
-    writeToFile 
-} from "./notes";
+import { WorkspaceWatcher } from "./watcher";
+import { ConfigurationProvider } from "./configuration/configuration.provider";
+import { ConfigurationCore } from "./configuration/configuration.core";
 
-function processInput(input: string) {
+async function processInput(input: string): Promise<void> {
+
+    // Statt nur zu importieren:
+    DependencyInjectionContainer.resolve(ConfigurationProvider);
+    DependencyInjectionContainer.resolve(ConfigurationCore);
+    const watcher = DependencyInjectionContainer.resolve(WorkspaceWatcher);
+
     const args = input.trim().split(" ");
     const command = args.shift()?.toLowerCase();
 
@@ -54,8 +63,8 @@ function processInput(input: string) {
         syncTags();
     }
 
-    else if (command === "watch") {
-        startWatchMode();
+    else if (command === "watch") {;
+        await watcher.startWatchMode();
     }
 
     else if (command === "view") {

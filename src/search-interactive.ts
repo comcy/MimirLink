@@ -3,7 +3,7 @@ import path from "path";
 import readline from "readline";
 import inquirer from "inquirer";
 import chalk from "chalk";
-import { CONFIG, WORKSPACE } from "./config";
+import { CONFIG, WORKSPACE } from "./configuration";
 
 function isMarkdown(file: string) {
   return file.endsWith(".md");

@@ -1,8 +1,13 @@
-#!/usr/bin/env node
+/**
+ * Loads the configuration from the config file.
+ * @returns Config
+ * @deprecated This function is deprecated. Use ConfigurationProvider instead.
+ */
 
+import os from "os";
 import fs from "fs";
 import path from "path";
-import os from "os";
+import { Config } from "./config";
 
 const CONFIG_PATH = path.join(os.homedir(), ".mimirlink", "mimirlink.config.json");
 const DEFAULT_CONFIG: Config = { workspace: path.join(os.homedir(), "mimirlink") };
@@ -19,17 +24,3 @@ export function loadConfig(): Config {
         return DEFAULT_CONFIG;
     }
 }
-
-interface Config {
-    workspace: string;
-    editor?: ConfigEntry
-}
-
-interface ConfigEntry {
-    name: string;
-    value: string;
-}
-
-
-console.log(`🔧 Konfiguration geladen: ${JSON.stringify(loadConfig(), null, 4)}`);
-console.log(`🔧 Editor config: ${JSON.stringify(loadConfig().editor, null, 4)}`);

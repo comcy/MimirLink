@@ -1,7 +1,28 @@
 #!/usr/bin/env node
 import fs from "fs";
 import path from "path";
-import { loadConfig } from './config';
+import { ConfigurationCore, ConfigurationProvider, loadConfig } from './configuration';
+
+
+export class TodoHandler {
+    
+    private static instance: TodoHandler;
+
+    constructor(private coreService: ConfigurationCore) { }
+
+    // public static getInstance(): TodoHandler {
+    //     if (!TodoHandler.instance) {
+    //         TodoHandler.instance = new TodoHandler();
+    //     }
+    //     return TodoHandler.instance;
+    // }
+
+
+}
+
+
+// const coreService: ConfigurationCore = new ConfigurationCore(new ConfigurationProvider()); 
+
 
 const config = loadConfig();
 const workspace = config.workspace;

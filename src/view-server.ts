@@ -3,7 +3,7 @@ import express, { Express } from "express";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import { WORKSPACE } from "./config";
+import { WORKSPACE } from "./configuration";
 import matter from "gray-matter";
 
 
