@@ -1,10 +1,10 @@
 // view-server.ts
 import express, { Express } from "express";
-import path from "path";
 import fs from "fs";
-import { marked } from "marked";
-import { WORKSPACE } from "./config";
 import matter from "gray-matter";
+import { marked } from "marked";
+import path from "path";
+import { WORKSPACE } from "../configuration/config";
 
 
 export async function startViewMode(port = 3000) {
@@ -12,12 +12,7 @@ export async function startViewMode(port = 3000) {
   const open = (await import("open")).default;
   const app: Express = express();
 
-
   app.use("/static", express.static(WORKSPACE));
-
-  // app.get("/", (req, res) => {
-  //   res.redirect("/pages/index");
-  // });
 
   app.get("/", (req: any, res: any) => {
     const folders = fs.readdirSync(WORKSPACE, { withFileTypes: true })

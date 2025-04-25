@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import fs from "fs";
-import path from "path";
 import os from "os";
+import path from "path";
 
 const CONFIG_PATH = path.join(os.homedir(), ".mimirlink", "mimirlink.config.json");
 const DEFAULT_CONFIG: Config = { workspace: path.join(os.homedir(), "mimirlink") };

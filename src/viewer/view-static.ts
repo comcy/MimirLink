@@ -1,9 +1,9 @@
 // view-static.ts
 import fs from "fs";
-import path from "path";
 import matter from "gray-matter";
 import { marked } from "marked";
-import { WORKSPACE } from "./config";
+import path from "path";
+import { WORKSPACE } from "../configuration/config";
 
 const outputDir = path.join(WORKSPACE, "public");
 const templatePath = path.join(WORKSPACE, ".ygg", "templates", "page.html");

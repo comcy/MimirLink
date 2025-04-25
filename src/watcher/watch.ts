@@ -1,6 +1,6 @@
 import chokidar from "chokidar";
-import { syncTags } from "./notes";
-import { WORKSPACE } from "./config";
+import { WORKSPACE } from "../configuration/config";
+import { syncTags } from "../synchronisation/tags";
 
 export function startWatchMode() {
     const watcher = chokidar.watch(WORKSPACE, {

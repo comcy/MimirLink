@@ -1,9 +1,8 @@
-import fs from "fs";
-import path from "path";
-import readline from "readline";
-import inquirer from "inquirer";
 import chalk from "chalk";
-import { CONFIG, WORKSPACE } from "./config";
+import fs from "fs";
+import inquirer from "inquirer";
+import path from "path";
+import { CONFIG, WORKSPACE } from "./configuration/config";
 
 function isMarkdown(file: string) {
   return file.endsWith(".md");
