@@ -11,6 +11,7 @@ import {
 import { startViewMode } from "../viewer/view-server";
 import { startStaticSiteGeneration } from "../viewer/view-static";
 import { startWatchMode } from "../watcher/watch";
+import { syncImages } from "../synchronisation/images";
 
 function processInput(input: string) {
     const args = input.trim().split(" ");
@@ -52,6 +53,7 @@ function processInput(input: string) {
 
     else if (command === "sync") {
         syncTags();
+        syncImages();
     }
 
     else if (command === "watch") {
