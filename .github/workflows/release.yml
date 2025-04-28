@@ -1,10 +1,9 @@
-# 📁 .github/workflows/release.yml
 name: Release and Publish
 
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   release:

@@ -1,9 +1,12 @@
-# 📁 .github/workflows/publish.yml
 name: Publish to npm
 
+# on:
+#   release:
+#     types: [created]
 on:
-  release:
-    types: [created]
+    push:
+      branches:
+        - master
 
 jobs:
   build-and-publish:
