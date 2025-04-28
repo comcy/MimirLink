@@ -6,6 +6,9 @@
     "bin": {
         "ygg": "./dist/index.js"
     },
+    "publishConfig": {
+      "access": "public"
+    },
     "scripts": {
         "init": "npm install && npm run build",
         "build:tsc": "tsc",

@@ -1,0 +1,30 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published] # Nur wenn ein Release veröffentlicht wird
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'         # oder welche Node-Version du nutzt
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build # oder dein Build-Skript (z.B. tsc für TypeScript)
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
