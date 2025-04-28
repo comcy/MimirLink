@@ -76,8 +76,12 @@ npm run start
 
 ## Plannned features
 
+- TODO integration
+  - Split todos in scope based files
+  - e.g. due date based journal integration via "sync" command
+
+
 - FOSS / 3rd party licensing
-- Copy Static Assets (z. B. Bilder, PDFs) automatisch mit
 - 404-Seite generieren
 - Sitemap & RSS-Feed
 - Frontmatter-basierte Metadaten wie date, tags, draft verwenden
