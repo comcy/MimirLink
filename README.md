@@ -1,4 +1,4 @@
-![alt text](logo.png)
+![alt text](./docs/assets/img/logo.png)
 
 # ᛗᛁᛗᛁᚱᛚᛁᚾᚲ - ("M I M I R L I N K")
 
