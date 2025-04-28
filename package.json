@@ -1,16 +1,30 @@
 {
     "name": "mimirlink",
-    "version": "1.0.0",
+    "version": "0.1.0-alpha",
     "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
         "ygg": "./dist/index.js"
+    },
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "exports": {
+    ".": {
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+        }
     },
     "publishConfig": {
       "access": "public"
     },
     "scripts": {
         "init": "npm install && npm run build",
+        "lint": "",
+        "test": "",
         "build:tsc": "tsc",
         "build": "tsup",
         "start": "node dist/index.js",

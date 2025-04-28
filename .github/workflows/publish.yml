@@ -1,11 +1,12 @@
+# 📁 .github/workflows/publish.yml
 name: Publish to npm
 
 on:
   release:
-    types: [published] # Nur wenn ein Release veröffentlicht wird
+    types: [created]
 
 jobs:
-  publish:
+  build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,16 +16,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'         # oder welche Node-Version du nutzt
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org/'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
-        run: npm run build # oder dein Build-Skript (z.B. tsc für TypeScript)
+      - name: Build project with tsup
+        run: npm run build
 
       - name: Publish to npm
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public

@@ -1,4 +1,4 @@
-name: Validate Build
+name: Validate Build and Tests
 
 on:
   push:
@@ -27,5 +27,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
+      - name: Lint check (optional)
+        run: npm run lint # nur falls du linting hast
+
+      - name: Build check
         run: npm run build
+
+      - name: Run tests (optional)
+        run: npm run test # nur falls du Tests hast
