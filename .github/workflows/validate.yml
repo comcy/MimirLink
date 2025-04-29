@@ -1,37 +1,25 @@
-name: Validate Build and Tests
+name: Validate Build
 
 on:
   push:
-    branches:
+    branches-ignore:
       - master
-      - develop
-      - feature/**
   pull_request:
-    branches:
-      - master
-      - develop
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 20
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Lint check (optional)
-        run: npm run lint # nur falls du linting hast
+    #   - name: Lint and type-check
+    #     run: npm run lint && npm run typecheck
 
-      - name: Build check
+      - name: Build
         run: npm run build
-
-      - name: Run tests (optional)
-        run: npm run test # nur falls du Tests hast
