@@ -1,6 +1,6 @@
 {
     "name": "mimirlink",
-    "version": "0.1.0-alpha",
+    "version": "0.1.0",
     "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
@@ -11,9 +11,9 @@
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-                "import": "./dist/index.mjs",
-                "require": "./dist/index.cjs"
-            }
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.cjs"
+        }
     },
     "files": [
         "dist",
