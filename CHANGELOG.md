@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.1.1
+
+### Patch Changes
+
+- 5f7d49a: Fixed automation stuff
+
 ## 0.1.0
 
 ### Minor Changes
