@@ -1,4 +1,3 @@
-// view-static.ts
 import fs from "fs";
 import matter from "gray-matter";
 import { marked } from "marked";
