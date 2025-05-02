@@ -1,4 +1,3 @@
-// view-server.ts
 import express, { Express } from "express";
 import fs from "fs";
 import matter from "gray-matter";
