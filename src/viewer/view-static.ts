@@ -119,7 +119,6 @@ function generateStaticSite(dir: string, relDir: string = "") {
 
 export function startStaticSiteGeneration() {
 
-  // Starte die Generierung
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
   generateStaticSite(WORKSPACE, "");
