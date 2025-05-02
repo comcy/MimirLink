@@ -1,0 +1,5 @@
+---
+"mimirlink": patch
+---
+
+Updated action
