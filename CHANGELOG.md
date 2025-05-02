@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated infrastructure
+
 ## 0.1.3
 
 ### Patch Changes
