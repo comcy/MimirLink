@@ -49,6 +49,7 @@
         "@types/chalk": "^0.4.31",
         "chalk": "^5.4.1",
         "chokidar": "^4.0.3",
+        "date-fns": "^4.1.0",
         "express": "^5.1.0",
         "gray-matter": "^4.0.3",
         "highlight": "^0.2.4",
