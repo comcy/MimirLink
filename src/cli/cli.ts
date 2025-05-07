@@ -5,13 +5,11 @@ import { createJournalEntry } from "../notes/journals/journal";
 import { createPage } from "../notes/pages/page";
 import { interactiveSearch } from "../search-interactive";
 import { syncTags } from "../synchronisation/tags";
-import {
-    writeToFile
-} from "../todos/todo";
 import { startViewMode } from "../viewer/view-server";
 import { startStaticSiteGeneration } from "../viewer/view-static";
 import { startWatchMode } from "../watcher/watch";
 import { syncImages } from "../synchronisation/images";
+import { syncTodos } from "../todos/todo";
 
 function processInput(input: string) {
     const args = input.trim().split(" ");
@@ -37,7 +35,6 @@ function processInput(input: string) {
         }
 
         if (!todoText) return;
-        writeToFile(todoText, scope || undefined, dueDate || undefined, priority || undefined);
         console.log("TODO gespeichert.");
     }
 
@@ -54,6 +51,8 @@ function processInput(input: string) {
     else if (command === "sync") {
         syncTags();
         syncImages();
+        syncTodos(); // <-- diese Zeile ergänzt den Todo-Sync
+        console.log("✅ Synchronisation abgeschlossen.");
     }
 
     else if (command === "watch") {

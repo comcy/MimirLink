@@ -1,5 +1,16 @@
 # mimirlink
 
+## 0.2.0
+
+### Minor Changes
+
+- Added basic todo handling
+
+### Patch Changes
+
+- 7f7d898: Updated version #6
+- 18d1b03: Cleaned files
+
 ## 0.1.4
 
 ### Patch Changes

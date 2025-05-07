@@ -1,6 +1,6 @@
 {
     "name": "mimirlink",
-    "version": "0.1.4",
+    "version": "0.2.0",
     "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
@@ -49,6 +49,7 @@
         "@types/chalk": "^0.4.31",
         "chalk": "^5.4.1",
         "chokidar": "^4.0.3",
+        "date-fns": "^4.1.0",
         "express": "^5.1.0",
         "gray-matter": "^4.0.3",
         "highlight": "^0.2.4",
