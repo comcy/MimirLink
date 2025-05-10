@@ -3,7 +3,7 @@
  */
 export function generateFrontmatter(title: string, contentType: "journal" | "page"): string {
     const createdAt = new Date().toISOString();
-    return `---\ntitle: "${title}"\ncreatedAt: "${createdAt}"\ncontentType: "${contentType}"\nupdatedAt: "${createdAt}"\n---\n\n`;
+    return `---\ntitle: "${title}"\ncreatedAt: "${createdAt}"\ncontentType: "${contentType}"\nupdatedAt: "${createdAt}"\n---\n\n# ${title}`;
 }
 
 

@@ -1,24 +1,32 @@
 import fs from "fs";
 import path from "path";
 import { loadConfig } from "../configuration/config";
-import { format, parseISO, isAfter, subDays } from "date-fns";
+import { format } from "date-fns";
 
 const config = loadConfig();
 const workspace = config.workspace;
 const TODOS_DIR = path.join(workspace, ".ygg");
 const TODOS_JSON = path.join(TODOS_DIR, "todos.json");
 const DONE_JSON = path.join(TODOS_DIR, "done.json");
-const JOURNAL_PATH = path.join(workspace, "journals", "TODAY.md");
+const QUESTION_JSON = path.join(TODOS_DIR, "questions.json");
+const ANSWER_JSON = path.join(TODOS_DIR, "answers.json");
+const DECISION_JSON = path.join(TODOS_DIR, "decisions.json");
 
-export interface Todo {
+const JOURNAL_DIR = path.join(workspace, "journals");
+const TODAY_PATH = path.join(JOURNAL_DIR, "@TODAY.md");
+const QUESTION_PATH = path.join(JOURNAL_DIR, "@QUESTION.md");
+const ANSWER_PATH = path.join(JOURNAL_DIR, "@ANSWER.md");
+const DECISION_PATH = path.join(JOURNAL_DIR, "@DECISION.md");
+
+export interface Entry {
   content: string;
   scope?: string;
   dueDate?: string;
   priority?: string;
-  status: "TODO" | "DONE";
-  sourceFile: string;
   createdAt: string;
   closedAt?: string;
+  type: "TODO" | "DONE" | "QUESTION" | "ANSWER" | "DECISION";
+  sourceFile: string;
 }
 
 function ensureTodosDir() {
@@ -27,22 +35,12 @@ function ensureTodosDir() {
   }
 }
 
-function loadTodos(): Todo[] {
-  if (!fs.existsSync(TODOS_JSON)) return [];
-  return JSON.parse(fs.readFileSync(TODOS_JSON, "utf-8"));
+function loadEntries(file: string): Entry[] {
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf-8")) : [];
 }
 
-function loadDone(): Todo[] {
-  if (!fs.existsSync(DONE_JSON)) return [];
-  return JSON.parse(fs.readFileSync(DONE_JSON, "utf-8"));
-}
-
-function saveTodos(todos: Todo[]) {
-  fs.writeFileSync(TODOS_JSON, JSON.stringify(todos, null, 2), "utf-8");
-}
-
-function saveDone(todos: Todo[]) {
-  fs.writeFileSync(DONE_JSON, JSON.stringify(todos, null, 2), "utf-8");
+function saveEntries(file: string, entries: Entry[]) {
+  fs.writeFileSync(file, JSON.stringify(entries, null, 2), "utf-8");
 }
 
 function getAllMarkdownFiles(dir: string): string[] {
@@ -58,147 +56,172 @@ function getAllMarkdownFiles(dir: string): string[] {
   });
 }
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
-}
 
-function extractTodoMetadata(line: string): Partial<Todo> {
-  let content = line.replace(/^\s*- \[[ xX]\] /, "").trim();
-
-  let dueDate: string | undefined;
-  let priority: string | undefined;
-  let scope: string | undefined;
-
-  const inlineMatches = content.match(/\[(due|priority|scope):([^\]]+)\]/g);
-  if (inlineMatches) {
-    for (const match of inlineMatches) {
-      const [, key, value] = match.match(/\[(due|priority|scope):([^\]]+)\]/)!;
-      if (key === "due") dueDate = value.trim();
-      if (key === "priority") priority = value.trim().toLowerCase();
-      if (key === "scope") scope = value.trim();
+function parseEntry(lines: string[], index: number, sourceFile: string): [Entry | null, number] {
+    const baseLine = lines[index];
+    const match = baseLine.match(/^(\s*)@(TODO|DONE|QUESTION|ANSWER|DECISION)\s+(.+)/);
+    if (!match) return [null, index];
+  
+    const [_, indent, type, mainText] = match;
+    const baseIndentLength = indent.length;
+    const createdAt = format(new Date(), "yyyy-MM-dd");
+    let closedAt: string | undefined;
+    let priority: string | undefined;
+    let dueDate: string | undefined;
+    const scopes: string[] = [];
+  
+    let content = mainText;
+  
+    const linkTagPattern = /\[#([^\]]+)\]\(([^)]+)\)/g;
+    content = content.replace(linkTagPattern, (full, tagText, link) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(tagText)) {
+        dueDate = tagText;
+        return ""; // remove from content
+      } else if (["!", "!!", "!!!"].includes(tagText)) {
+        priority = tagText;
+        return ""; // remove from content
+      } else {
+        scopes.push(tagText);
+        return ""; // remove from content
+      }
+    });
+  
+    content = content.trim();
+  
+    let i = index + 1;
+    while (i < lines.length) {
+      const line = lines[i];
+      const lineIndent = line.match(/^\s*/)?.[0].length ?? 0;
+      if (lineIndent > baseIndentLength) {
+        content += `\n${line}`;
+        i++;
+      } else {
+        break;
+      }
     }
-    content = content.replace(/\[(due|priority|scope):([^\]]+)\]/g, "").trim();
-  }
-
-  if (!dueDate && content.includes("📅")) {
-    const match = content.match(/📅\s*(\d{4}-\d{2}-\d{2})/);
-    if (match) dueDate = match[1];
-    content = content.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
-  }
-
-  if (!priority) {
-    if (content.includes("🔴")) priority = "high";
-    else if (content.includes("🟡")) priority = "medium";
-    else if (content.includes("🟢")) priority = "low";
-    content = content.replace(/[🔴🟡🟢]/g, "").trim();
-  }
-
-  if (!scope && content.includes("🗂️")) {
-    const match = content.match(/🗂️\s*(\w+)/);
-    if (match) scope = match[1];
-    content = content.replace(/🗂️\s*\w+/, "").trim();
-  }
-
-  if (!content.startsWith("\"")) {
-    content = `"${content}"`;
-  }
-
-  return { content, dueDate, priority, scope };
-}
-
-function writeTodayJournal(allTodos: Todo[]) {
-  const today = format(new Date(), "yyyy-MM-dd");
-  const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
-  const frontmatter = `---\ntitle: My Day\ndate: ${today}\ntype: journal\n---`;
-  const header = `# My Day — ${today}`;
-
-  const visibleTodos = allTodos.filter(t => {
-    if (t.status === "TODO") return true;
-    if (t.closedAt) {
-      return t.closedAt >= yesterday;
+  
+    if (type === "DONE") {
+      closedAt = createdAt;
     }
-    return false;
-  });
+  
+    return [
+      {
+        content,
+        scope: scopes.length ? scopes : undefined,
+        dueDate,
+        priority,
+        createdAt,
+        closedAt,
+        type: type as Entry["type"],
+        sourceFile: path.relative(workspace, sourceFile),
+      },
+      i - 1,
+    ];
+  }
+    
+  
 
-  const nowTodos = visibleTodos.filter(t => t.dueDate && (t.dueDate <= today));
-  const laterTodos = visibleTodos.filter(t => t.dueDate && t.dueDate > today);
-  const otherTodos = visibleTodos.filter(t => !t.dueDate);
+function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader: string) {
+  const frontmatter = `---\ntitle: ${tokenHeader}\ndate: ${format(new Date(), "yyyy-MM-dd")}\ntype: journal\n---`;
+  const grouped: Record<string, Entry[]> = {};
 
-  const sortFn = (a: Todo, b: Todo) => {
-    return b.createdAt.localeCompare(a.createdAt);
-  };
+  for (const entry of entries) {
+    if (!grouped[entry.createdAt]) grouped[entry.createdAt] = [];
+    grouped[entry.createdAt].push(entry);
+  }
 
-  const formatEntry = (t: Todo) => {
-    const anchor = `#${slugify(t.content)}`;
-    const relativePath = path.relative(path.dirname(JOURNAL_PATH), path.join(workspace, t.sourceFile)).replace(/\\/g, "/");
-    const checkbox = t.status === "DONE" ? "x" : " ";
+  const content = [`# ${tokenHeader}`];
 
-    const symbols = [
-      t.dueDate ? `📅 ${t.dueDate}` : "",
-      t.scope ? `🗂️ ${t.scope}` : "",
-      t.priority === "high" ? "🔴" : t.priority === "medium" ? "🟡" : t.priority === "low" ? "🟢" : ""
-    ].filter(Boolean).join(" ");
+  for (const date of Object.keys(grouped).sort().reverse()) {
+    content.push(`\n\n## ${date}`);
+    for (const entry of grouped[date]) {
+      const anchor = `#${entry.content.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`;
+      const fileLink = `[${entry.sourceFile}](../${entry.sourceFile}${anchor})`;
+      content.push(`#### ${tokenHeader}\n${entry.content}\n\n**reference:** ${fileLink}\n---`);
+    }
+  }
 
-    return `- [${checkbox}] [${t.content} (${symbols})](${relativePath}${anchor})`;
-  };
-
-  const sections = [
-    `## NOW\n${nowTodos.sort(sortFn).map(formatEntry).join("\n")}`,
-    `## Later\n${laterTodos.sort(sortFn).map(formatEntry).join("\n")}`,
-    `## Other tasks\n${otherTodos.sort(sortFn).map(formatEntry).join("\n")}`
-  ];
-
-  const content = `${frontmatter}\n\n${header}\n\n${sections.join("\n\n")}`;
-
-  fs.mkdirSync(path.dirname(JOURNAL_PATH), { recursive: true });
-  fs.writeFileSync(JOURNAL_PATH, content, "utf-8");
+  fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n")}`, "utf-8");
 }
 
 export function syncTodos() {
   ensureTodosDir();
+
+  const todos: Entry[] = [];
+  const done: Entry[] = [];
+  const questions: Entry[] = [];
+  const answers: Entry[] = [];
+  const decisions: Entry[] = [];
+
   const allFiles = getAllMarkdownFiles(workspace);
-  const todos: Todo[] = [];
-  const done: Todo[] = [];
-  const today = format(new Date(), "yyyy-MM-dd");
 
   for (const file of allFiles) {
-    if (file.endsWith("journals/TODAY.md")) continue;
-    const content = fs.readFileSync(file, "utf-8");
-    const lines = content.split("\n");
-    const updatedLines: string[] = [];
-
-    for (let line of lines) {
-      const trimmedLine = line.trimStart();
-      if (trimmedLine.startsWith("- [ ] ") || trimmedLine.startsWith("- [x] ")) {
-        const status = trimmedLine.startsWith("- [ ] ") ? "TODO" : "DONE";
-        const parsed = extractTodoMetadata(trimmedLine);
-        const existing = [...todos, ...done].find(t => t.content === parsed.content);
-
-        const todo: Todo = {
-          ...parsed,
-          status,
-          sourceFile: path.relative(workspace, file),
-          createdAt: existing?.createdAt || today,
-          closedAt: status === "DONE" ? (existing?.closedAt || today) : existing?.closedAt
-        } as Todo;
-
-        if (status === "DONE") {
-          done.push(todo);
-        } else {
-          todos.push(todo);
+    const lines = fs.readFileSync(file, "utf-8").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const [entry, newIndex] = parseEntry(lines, i, file);
+      if (entry) {
+        switch (entry.type) {
+          case "TODO":
+            todos.push(entry);
+            break;
+          case "DONE":
+            done.push(entry);
+            break;
+          case "QUESTION":
+            questions.push(entry);
+            break;
+          case "ANSWER":
+            answers.push(entry);
+            break;
+          case "DECISION":
+            decisions.push(entry);
+            break;
         }
+        i = newIndex;
       }
-      updatedLines.push(line);
     }
-
-    fs.writeFileSync(file, updatedLines.join("\n"), "utf-8");
   }
 
-  saveTodos(todos);
-  saveDone(done);
-  writeTodayJournal([...todos, ...done]);
+  saveEntries(TODOS_JSON, todos);
+  saveEntries(DONE_JSON, done);
+  saveEntries(QUESTION_JSON, questions);
+  saveEntries(ANSWER_JSON, answers);
+  saveEntries(DECISION_JSON, decisions);
+
+  const today = format(new Date(), "yyyy-MM-dd");
+  const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
+
+  const filteredDone = done.filter(d => d.closedAt === today || d.closedAt === yesterday);
+  const sortedTodos = [...todos, ...filteredDone].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  writeJournalFile(TODAY_PATH, sortedTodos, "My Day");
+  writeGroupedJournalFile(QUESTION_PATH, questions, "@QUESTION");
+  writeGroupedJournalFile(ANSWER_PATH, answers, "@ANSWER");
+  writeGroupedJournalFile(DECISION_PATH, decisions, "@DECISION");
 }
+
+function writeJournalFile(filePath: string, entries: Entry[], header: string) {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
+    const content = [`# ${header} — ${today}`];
+  
+    for (const e of entries) {
+      const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
+      const priorityPrefix = e.priority ? `#${e.priority} ` : "";
+      const lines = [`- ${checkbox} ${priorityPrefix}${e.content}`];
+  
+      if (e.scope && Array.isArray(e.scope) && e.scope.length > 0) {
+        const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
+        lines.push(`  - scopes: ${scopeLinks}`);
+      }
+  
+      if (e.dueDate) {
+        lines.push(`  - due: [#${e.dueDate}](./${e.dueDate}.md)`);
+      }
+  
+      content.push(lines.join("\n"));
+    }
+  
+    fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n\n")}\n`, "utf-8");
+  }
+  
