@@ -20,7 +20,7 @@ const DECISION_PATH = path.join(JOURNAL_DIR, "@DECISION.md");
 
 export interface Entry {
   content: string;
-  scope?: string;
+  scope?: string | string[];
   dueDate?: string;
   priority?: string;
   createdAt: string;
@@ -141,7 +141,36 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader
   fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n")}`, "utf-8");
 }
 
-export function syncTodos() {
+function writeJournalFile(filePath: string, entries: Entry[], header: string) {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
+    const content = [`# ${header} — ${today}`];
+  
+    for (const e of entries) {
+      const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
+      const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
+  
+      if (e.scope?.length) {
+        const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
+        lines.push(`  - scopes: ${scopeLinks}`);
+      }
+      if (e.dueDate) {
+        lines.push(`  - due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
+      }
+      if (e.priority) {
+        lines.push(`  - prio: #${e.priority}`);
+      }
+      if (e.sourceFile) {
+        lines.push(`  - ref: [${e.sourceFile}](../${e.sourceFile})`);
+      }
+  
+      content.push(lines.join("\n"));
+    }
+  
+    fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n\n")}\n`, "utf-8");
+  }
+  
+  export function syncTodos() {
   ensureTodosDir();
 
   const todos: Entry[] = [];
@@ -196,37 +225,3 @@ export function syncTodos() {
   writeGroupedJournalFile(ANSWER_PATH, answers, "@ANSWER");
   writeGroupedJournalFile(DECISION_PATH, decisions, "@DECISION");
 }
-
-function writeJournalFile(filePath: string, entries: Entry[], header: string) {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
-    const content = [`# ${header} — ${today}`];
-  
-    for (const e of entries) {
-      const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-      const priorityPrefix = e.priority ? `#${e.priority} ` : "";
-      const lines = [`- ${checkbox} ${priorityPrefix}${e.content}`];
-  
-      if (e.scope && e.scope.length > 0) {
-        const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-        lines.push(`  - scopes: ${scopeLinks}`);
-      }
-      
-      if (e.dueDate) {
-        lines.push(`  - due: [#${e.dueDate}](./${e.dueDate}.md)`);
-      }  
-  
-      if (e.priority) {
-        lines.push(`  - prio: #${e.priority}`);
-      }  
-
-      if (e.sourceFile) {
-        lines.push(`(ref: [#${e.content}](../${e.sourceFile}.md)`);
-      }
-  
-      content.push(lines.join("\n"));
-    }
-  
-    fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n\n")}\n`, "utf-8");
-  }
-  
