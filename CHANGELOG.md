@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.3.0
+
+### Minor Changes
+
+- Changed handling of TODOs
+
 ## 0.2.0
 
 ### Minor Changes
