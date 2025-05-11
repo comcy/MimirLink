@@ -70,24 +70,21 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     let dueDate: string | undefined;
     const scopes: string[] = [];
   
+    // Markdown-style tag detection: [#tag](link)
+    const tagPattern = /\[#([^\]]+)\]\(([^)]+)\)/g;
     let content = mainText;
-  
-    const linkTagPattern = /\[#([^\]]+)\]\(([^)]+)\)/g;
-    content = content.replace(linkTagPattern, (full, tagText, link) => {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(tagText)) {
-        dueDate = tagText;
-        return ""; // remove from content
-      } else if (["!", "!!", "!!!"].includes(tagText)) {
-        priority = tagText;
-        return ""; // remove from content
+    content = content.replace(tagPattern, (_, tag, link) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(tag)) {
+        dueDate = tag;
+      } else if (["!", "!!", "!!!"].includes(tag)) {
+        priority = tag;
       } else {
-        scopes.push(tagText);
-        return ""; // remove from content
+        scopes.push(tag);
       }
-    });
+      return ""; // remove tag from content
+    }).trim();
   
-    content = content.trim();
-  
+    // Multiline content handling
     let i = index + 1;
     while (i < lines.length) {
       const line = lines[i];
@@ -118,7 +115,7 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
       i - 1,
     ];
   }
-    
+  
   
 
 function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader: string) {
@@ -210,13 +207,21 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
       const priorityPrefix = e.priority ? `#${e.priority} ` : "";
       const lines = [`- ${checkbox} ${priorityPrefix}${e.content}`];
   
-      if (e.scope && Array.isArray(e.scope) && e.scope.length > 0) {
+      if (e.scope && e.scope.length > 0) {
         const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
         lines.push(`  - scopes: ${scopeLinks}`);
       }
-  
+      
       if (e.dueDate) {
         lines.push(`  - due: [#${e.dueDate}](./${e.dueDate}.md)`);
+      }  
+  
+      if (e.priority) {
+        lines.push(`  - prio: #${e.priority}`);
+      }  
+
+      if (e.sourceFile) {
+        lines.push(`(ref: [#${e.content}](../${e.sourceFile}.md)`);
       }
   
       content.push(lines.join("\n"));
