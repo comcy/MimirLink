@@ -1,6 +1,13 @@
 ![alt text](./docs/assets/img/logo.png)
 
+[![version](https://img.shields.io/npm/v/mimirlink.svg?color=red&style=for-the-badge)](https://npmjs.org/mimirlink) ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white) ![GitHub License](https://img.shields.io/github/license/comcy/MimirLink?color=blue&style=for-the-badge)
+
 # ᛗᛁᛗᛁᚱᛚᛁᚾᚲ - ("M I M I R L I N K")
+
+<!-- ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/comcy/MimirLink/Build?color=yellow&style=for-the-badge) -->
+
+
+[![Build](https://github.com/comcy/MimirLink/actions/workflows/validate.yml/badge.svg?branch=master)](https://github.com/comcy/MimirLink/actions/workflows/validate.yml) ![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=flat&logo=githubactions&logoColor=white)
 
 MímirLink is a minimal, markdown-inspired note-taking tool designed for thought organization and idea connection. Lightweight, fast, and fully local - it empowers users to work with markdown based notes, journaling and todos by proving minimal set of tools in a cli.
 
