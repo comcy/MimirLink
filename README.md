@@ -86,6 +86,7 @@ npm run start
 - TODO integration
   - Split todos in scope based files
   - e.g. due date based journal integration via "sync" command
+  - Tagged pages should have a referenced section on it which lists all pages the tag was set
 
 
 - FOSS / 3rd party licensing
