@@ -15,7 +15,7 @@ const IDEAS_JSON = path.join(TODOS_DIR, "ideas.json");
 const REMINDER_JSON = path.join(TODOS_DIR, "reminders.json");
 
 const JOURNAL_DIR = path.join(workspace, "journals");
-const TODAY_PATH = path.join(JOURNAL_DIR, "TODAY.md");
+const TODAY_PATH = path.join(JOURNAL_DIR, "@TODAY.md");
 const QUESTION_PATH = path.join(JOURNAL_DIR, "@QUESTION.md");
 const ANSWER_PATH = path.join(JOURNAL_DIR, "@ANSWER.md");
 const DECISION_PATH = path.join(JOURNAL_DIR, "@DECISION.md");
@@ -59,13 +59,41 @@ function getAllMarkdownFiles(dir: string): string[] {
 }
 
 function parseEntry(lines: string[], index: number, sourceFile: string): [Entry | null, number] {
-  const baseLine = lines[index];
+  const metadata = parseEntryMetadata(lines[index]);
+  if (!metadata) return [null, index];
+
+  const createdAt = format(new Date(), "yyyy-MM-dd");
+  const closedAt = metadata.type === "DONE" ? createdAt : undefined;
+
+  let content = metadata.content;
+  let i = index + 1;
+  while (i < lines.length && lines[i].startsWith("  ")) {
+    content += "\n" + lines[i];
+    i++;
+  }
+
+  return [
+    {
+      content,
+      scope: metadata.scope,
+      dueDate: metadata.dueDate,
+      priority: metadata.priority,
+      createdAt,
+      closedAt,
+      type: metadata.type,
+      sourceFile: path.relative(workspace, sourceFile),
+    },
+    i - 1,
+  ];
+}
+
+
+function parseEntryMetadata(baseLine: string): Partial<Entry> & { type: Entry["type"]; content: string } | null {
   const match = baseLine.match(/^\s*@(TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\s+(.+)/);
-  if (!match) return [null, index];
+  if (!match) return null;
 
   const [, type, mainText] = match;
   let content = mainText.trim();
-  const createdAt = format(new Date(), "yyyy-MM-dd");
   let dueDate: string | undefined;
   let priority: string | undefined;
   let scopeTags: string[] = [];
@@ -85,28 +113,15 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
 
   content = content.replace(tagRegex, "").trim();
 
-  let i = index + 1;
-  while (i < lines.length && lines[i].startsWith("  ")) {
-    content += "\n" + lines[i];
-    i++;
-  }
-
-  const closedAt = type === "DONE" ? createdAt : undefined;
-
-  return [
-    {
-      content,
-      scope: scopeTags.length > 0 ? scopeTags : undefined,
-      dueDate,
-      priority,
-      createdAt,
-      closedAt,
-      type: type as Entry["type"],
-      sourceFile: path.relative(workspace, sourceFile),
-    },
-    i - 1,
-  ];
+  return {
+    type: type as Entry["type"],
+    content,
+    dueDate,
+    priority,
+    scope: scopeTags.length ? scopeTags : undefined,
+  };
 }
+
 
 function writeJournalFile(filePath: string, entries: Entry[], header: string) {
   const today = format(new Date(), "yyyy-MM-dd");
