@@ -29,6 +29,7 @@ export interface Entry {
   closedAt?: string;
   type: "TODO" | "DONE" | "QUESTION" | "ANSWER" | "DECISION" | "IDEAS" | "REMINDER";
   sourceFile: string;
+  ref: string;
 }
 
 function ensureTodosDir() {
@@ -59,48 +60,21 @@ function getAllMarkdownFiles(dir: string): string[] {
 }
 
 function parseEntry(lines: string[], index: number, sourceFile: string): [Entry | null, number] {
-  const metadata = parseEntryMetadata(lines[index]);
-  if (!metadata) return [null, index];
-
-  const createdAt = format(new Date(), "yyyy-MM-dd");
-  const closedAt = metadata.type === "DONE" ? createdAt : undefined;
-
-  let content = metadata.content;
-  let i = index + 1;
-  while (i < lines.length && lines[i].startsWith("  ")) {
-    content += "\n" + lines[i];
-    i++;
-  }
-
-  return [
-    {
-      content,
-      scope: metadata.scope,
-      dueDate: metadata.dueDate,
-      priority: metadata.priority,
-      createdAt,
-      closedAt,
-      type: metadata.type,
-      sourceFile: path.relative(workspace, sourceFile),
-    },
-    i - 1,
-  ];
-}
-
-
-function parseEntryMetadata(baseLine: string): Partial<Entry> & { type: Entry["type"]; content: string } | null {
+  const baseLine = lines[index];
   const match = baseLine.match(/^\s*@(TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\s+(.+)/);
-  if (!match) return null;
+  if (!match) return [null, index];
 
-  const [, type, mainText] = match;
-  let content = mainText.trim();
+  const [, type, fullLineRaw] = match;
+  const createdAt = format(new Date(), "yyyy-MM-dd");
+
+  const tagRegex = /\[#([^\]]+)\]\([^)]+\)/g;
+  let scopeTags: string[] = [];
   let dueDate: string | undefined;
   let priority: string | undefined;
-  let scopeTags: string[] = [];
 
-  const tagRegex = /\[#([^\]]+)\]\([^\)]+\)/g;
+  // Get values from tags but DO NOT remove them yet
   let tagMatch;
-  while ((tagMatch = tagRegex.exec(content)) !== null) {
+  while ((tagMatch = tagRegex.exec(fullLineRaw)) !== null) {
     const tag = tagMatch[1];
     if (/^\d{4}-\d{2}-\d{2}$/.test(tag)) {
       dueDate = tag;
@@ -111,15 +85,61 @@ function parseEntryMetadata(baseLine: string): Partial<Entry> & { type: Entry["t
     }
   }
 
-  content = content.replace(tagRegex, "").trim();
+  // Add emoji prefix for emphasis
+  let emojiPrefix = "";
+  if (priority) {
+    emojiPrefix += {
+      "!": "⚠️ ",
+      "!!": "‼️ ",
+      "!!!": "❗❗❗ ",
+    }[priority] ?? "";
+  }
+  if (dueDate) {
+    emojiPrefix += "⏰ ";
+  }
 
-  return {
-    type: type as Entry["type"],
-    content,
-    dueDate,
-    priority,
-    scope: scopeTags.length ? scopeTags : undefined,
-  };
+  const fullLine = emojiPrefix + fullLineRaw.trim();
+
+  // Extract ref text (line without markdown links and emojis)
+  const plainText = fullLineRaw.replace(tagRegex, "").trim();
+
+  const baseIndent = baseLine.match(/^\s*/)?.[0].length ?? 0;
+  let content = fullLine;
+
+  let i = index + 1;
+  while (i < lines.length) {
+    const line = lines[i];
+    const indent = line.match(/^\s*/)?.[0].length ?? 0;
+    const isEmpty = line.trim() === "";
+
+    if (isEmpty || indent > baseIndent) {
+      content += "\n" + line;
+      i++;
+    } else {
+      break;
+    }
+  }
+
+  const sourceFileRelative = path.relative(workspace, sourceFile);
+  const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
+  const ref = `[#${sourceFileName}](${sourceFileRelative})`;
+
+  const closedAt = type === "DONE" ? createdAt : undefined;
+
+  return [
+    {
+      content,
+      scope: scopeTags.length > 0 ? scopeTags : undefined,
+      dueDate,
+      priority,
+      createdAt,
+      closedAt,
+      type: type as Entry["type"],
+      sourceFile: sourceFileRelative,
+      ref
+    },
+    i - 1,
+  ];
 }
 
 
@@ -128,11 +148,57 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
   const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
   const content = [`# ${header} — ${today}`];
 
-  const upcoming = entries.filter(e => e.dueDate && e.type !== "DONE" && e.type !== "DECISION" && e.type !== "ANSWER" && (e.dueDate <= today));
+  const dueOrOverdue = entries.filter(e =>
+    e.dueDate &&
+    e.type !== "DONE" &&
+    e.type !== "DECISION" &&
+    e.type !== "ANSWER" &&
+    (e.dueDate <= today)
+  );
 
-  if (upcoming.length) {
+  const groupByType = (list: Entry[]): Record<string, Entry[]> =>
+    list.reduce((acc, entry) => {
+      const type = entry.type;
+      if (!acc[type]) acc[type] = [];
+      acc[type].push(entry);
+      return acc;
+    }, {} as Record<string, Entry[]>);
+
+  const groupedDue = groupByType(dueOrOverdue);
+
+  if (Object.keys(groupedDue).length) {
     content.push("\n## 🔔 Due Today or Overdue");
-    for (const e of upcoming) {
+    for (const type of Object.keys(groupedDue)) {
+      content.push(`\n### @${type}`);
+      for (const e of groupedDue[type]) {
+        const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
+        const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
+        if (e.scope?.length) {
+          const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
+          lines.push(`  - scopes: ${scopeLinks}`);
+        }
+        if (e.dueDate) {
+          lines.push(`  - due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
+        }
+        if (e.priority) {
+          lines.push(`  - prio: #${e.priority}`);
+        }
+        if (e.ref) {
+          const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
+          lines.push(`  - ref: [#${sourceName}](../${e.sourceFile})`);
+        }        
+        content.push(lines.join("\n"));
+      }
+    }
+    content.push("\n---");
+  }
+
+  const remainingEntries = entries.filter(e => !dueOrOverdue.includes(e));
+  const groupedAll = groupByType(remainingEntries);
+
+  for (const type of Object.keys(groupedAll)) {
+    content.push(`\n## @${type}`);
+    for (const e of groupedAll[type]) {
       const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
       const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
       if (e.scope?.length) {
@@ -146,29 +212,12 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
         lines.push(`  - prio: #${e.priority}`);
       }
       if (e.sourceFile) {
-        lines.push(`  - ref: [#${e.content}](../${e.sourceFile}.md)`);
+        const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
+        lines.push(`  - ref: [#${sourceName}](../${e.sourceFile})`);
       }
       content.push(lines.join("\n"));
     }
-  }
-
-  for (const e of entries) {
-    const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-    const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
-    if (e.scope?.length) {
-      const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-      lines.push(`  - scopes: ${scopeLinks}`);
-    }
-    if (e.dueDate) {
-      lines.push(`  - due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
-    }
-    if (e.priority) {
-      lines.push(`  - prio: #${e.priority}`);
-    }
-    if (e.sourceFile) {
-      lines.push(`  - ref: [#${e.content}](../${e.sourceFile}.md)`);
-    }
-    content.push(lines.join("\n"));
+    content.push("\n---");
   }
 
   fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n\n")}\n`, "utf-8");
@@ -193,7 +242,7 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader
     }
   }
 
-  fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n")}`, "utf-8");
+  fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n")}\n`, "utf-8");
 }
 
 export function syncTodos() {
