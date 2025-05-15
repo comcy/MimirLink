@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.4.0
+
+### Minor Changes
+
+- 71e76b7: Added new grouping to TODAY page and made
+
 ## 0.3.0
 
 ### Minor Changes
