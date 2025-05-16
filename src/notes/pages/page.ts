@@ -25,7 +25,7 @@ export function createPage(name: string, customDir?: string) {
         console.log(`Die Seite "${safeFileName}" existiert bereits.`);
     } else {
         const frontmatter = generateFrontmatter(safeFileName, "page");
-        const initialContent = `${frontmatter}# ${name}\n\n`;
+        const initialContent = `${frontmatter}\n\n`;
         fs.writeFileSync(filePath, initialContent, "utf8");
         console.log(`Seite erstellt: ${filePath}`);
     }
