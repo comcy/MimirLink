@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.4.1
+
+### Patch Changes
+
+- Fixed duplicated name on pages
+
 ## 0.4.0
 
 ### Minor Changes
