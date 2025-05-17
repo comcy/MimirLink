@@ -93,3 +93,7 @@ npm run start
 - 404-Seite generieren
 - Sitemap & RSS-Feed
 - Frontmatter-basierte Metadaten wie date, tags, draft verwenden
+- site placeholders in markdown files which gives the possibility to place data as defined after a sync is executed
+  - all TODOS are display on different pages
+  - all DECISIONS are displayed in a specific page
+  - ...
