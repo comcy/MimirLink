@@ -1,6 +1,11 @@
 name: Release
 
+
 on:
+  workflow_run: # Only trigger, when the build workflow succeeded
+    workflows: ["Build Validation"]
+    types:
+      - completed
   push:
     branches:
       - master
