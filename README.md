@@ -83,6 +83,8 @@ npm run start
 
 ## Plannned features
 
+- Youtube Link Rewriter
+
 - TODO integration
   - Split todos in scope based files
   - e.g. due date based journal integration via "sync" command
