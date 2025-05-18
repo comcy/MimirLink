@@ -10,6 +10,8 @@ import { startStaticSiteGeneration } from "../viewer/view-static";
 import { startWatchMode } from "../watcher/watch";
 import { syncImages } from "../synchronisation/images";
 import { syncTodos } from "../todos/todo";
+import { youtubeLinkRewriter } from "../utils/youtube-link-rewriter";
+
 
 function processInput(input: string) {
     const args = input.trim().split(" ");
@@ -52,6 +54,7 @@ function processInput(input: string) {
         syncTags();
         syncImages();
         syncTodos(); // <-- diese Zeile ergänzt den Todo-Sync
+        youtubeLinkRewriter();
         console.log("✅ Synchronisation abgeschlossen.");
     }
 
