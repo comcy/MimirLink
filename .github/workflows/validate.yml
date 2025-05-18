@@ -2,9 +2,15 @@ name: Build
 
 on:
   push:
+    branches:
+      - features/**
     branches-ignore:
       - master
+      
   pull_request:
+    branches:
+      - features/**    
+
 
 jobs:
   validate:
