@@ -111,7 +111,13 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     const line = lines[i];
     const indent = line.match(/^\s*/)?.[0].length ?? 0;
     const isEmpty = line.trim() === "";
-
+    const nextLine = lines[i + 1] || "";
+    const isNextToken = nextLine.trim().match(/^@(?:TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\b/);
+  
+    // Beende, wenn Zeile leer ist und danach ein neuer Block beginnt
+    if (isEmpty && isNextToken) break;
+  
+    // Erlaube leere Zeile nur, wenn sie nicht zum nächsten Token gehört
     if (isEmpty || indent > baseIndent) {
       content += "\n" + line;
       i++;
@@ -119,6 +125,7 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
       break;
     }
   }
+  
 
   const sourceFileRelative = path.relative(workspace, sourceFile);
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
@@ -168,30 +175,53 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
 
   if (Object.keys(groupedDue).length) {
     content.push("\n## 🔔 Due Today or Overdue");
+    
     for (const type of Object.keys(groupedDue)) {
       content.push(`\n### @${type}`);
+  
       for (const e of groupedDue[type]) {
         const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-        const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
+        const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content.split("\n")[0]}`;
+        
+        const detailsLines: string[] = [];
+  
         if (e.scope?.length) {
           const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-          lines.push(`  - scopes: ${scopeLinks}`);
+          detailsLines.push(`\t- scopes: ${scopeLinks}`);
         }
         if (e.dueDate) {
-          lines.push(`  - due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
+          detailsLines.push(`\t- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
         }
         if (e.priority) {
-          lines.push(`  - prio: #${e.priority}`);
+          detailsLines.push(`\t- prio: #${e.priority}`);
         }
-        if (e.ref) {
+        if (e.sourceFile) {
           const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
-          lines.push(`  - ref: [#${sourceName}](../${e.sourceFile})`);
-        }        
-        content.push(lines.join("\n"));
+          detailsLines.push(`\t- ref: [#${sourceName}](../${e.sourceFile})`);
+        }
+  
+        // Weitere indented Content-Zeilen
+        const indentedLines = e.content.split("\n").slice(1);
+        if (indentedLines.length > 0) {
+          detailsLines.push(...indentedLines.map(line => `\t - ${line.trim()}`));
+        }
+  
+        const detailBlock = [,
+          `\t<details>`,
+          `\t<summary>Details</summary>`,
+          "\t",
+          ...detailsLines,
+          "\t",
+          `\t</details>\n`
+        ].join("\n");
+
+        content.push([mainLine, detailBlock].join("\n"));
       }
     }
+  
     content.push("\n---");
   }
+  
 
   const remainingEntries = entries.filter(e => !dueOrOverdue.includes(e));
   const groupedAll = groupByType(remainingEntries);
@@ -200,22 +230,42 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
     content.push(`\n## @${type}`);
     for (const e of groupedAll[type]) {
       const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-      const lines = [`- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content}`];
+      const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content.split("\n")[0]}`;
+
+      const detailsLines: string[] = [];
+      
       if (e.scope?.length) {
         const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-        lines.push(`  - scopes: ${scopeLinks}`);
+        detailsLines.push(`\t- scopes: ${scopeLinks}`);
       }
       if (e.dueDate) {
-        lines.push(`  - due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
+        detailsLines.push(`\t- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
       }
       if (e.priority) {
-        lines.push(`  - prio: #${e.priority}`);
+        detailsLines.push(`\t- prio: #${e.priority}`);
       }
       if (e.sourceFile) {
         const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
-        lines.push(`  - ref: [#${sourceName}](../${e.sourceFile})`);
+        detailsLines.push(`\t- ref: [#${sourceName}](../${e.sourceFile})`);
       }
-      content.push(lines.join("\n"));
+      
+      // Eingeklappter Body-Inhalt (ab Zeile 2 der originalen content-Zeilen)
+      const indentedLines = e.content.split("\n").slice(1);
+      if (indentedLines.length > 0) {
+        detailsLines.push(...indentedLines.map(line => `\t - ${line.trim()}`));
+      }
+      
+      const detailBlock = [,
+        `\t<details>`,
+        `\t<summary>Details</summary>`,
+        "\t",
+        ...detailsLines,
+        "\t",
+        `\t</details>`
+      ].join("\n");
+      
+      content.push([mainLine, detailBlock].join("\n"));
+      
     }
     content.push("\n---");
   }
@@ -238,7 +288,21 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader
     for (const entry of grouped[date]) {
       const anchor = `#${entry.content.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`;
       const fileLink = `[${entry.sourceFile}](../${entry.sourceFile}${anchor})`;
-      content.push(`\n### ${tokenHeader}\n\n${entry.content}\n\nref: ${fileLink}\n\n---`);
+      const mainLine = `- ${entry.content.split("\n")[0]}`;
+
+      const detailLines = entry.content.split("\n").slice(1).map(l => `\t- ${l.trim()}`);
+      detailLines.push(`\t- ref: ${fileLink}`);
+      
+      const detailBlock = [,
+        `\t<details>`,
+        `\t<summary>Details</summary>`,
+        "\t",
+        ...detailLines,
+        "\t",
+        `\t</details>`
+      ].join("\n");
+      
+      content.push(`\n### ${tokenHeader}\n\n${mainLine}\n\n${detailBlock}\n\n---`);      
     }
   }
 

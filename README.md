@@ -99,3 +99,9 @@ npm run start
   - all TODOS are display on different pages
   - all DECISIONS are displayed in a specific page
   - ...
+
+
+
+## Glossray 
+
+"mind token" - TODO, DECISION, IDEA, QUESTION, ANSWER
