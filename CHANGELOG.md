@@ -1,5 +1,12 @@
 # mimirlink
 
+## 0.5.0
+
+### Minor Changes
+
+- ba5f003: Added youtube-link rewriter module
+- 64a30a6: Added exandable details for mind-tokens
+
 ## 0.4.1
 
 ### Patch Changes
