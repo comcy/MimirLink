@@ -150,6 +150,16 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
 }
 
 
+function formatBodyAsMarkdownList(lines: string[]): string {
+  return lines.map(line => {
+    if (!line.trim()) return "";
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+    const bulletLevel = Math.floor(indent / 2); // oder 1, je nach Format
+    return `${"  ".repeat(bulletLevel)}- ${line.trim()}`;
+  }).join("\n");
+}
+
 function writeJournalFile(filePath: string, entries: Entry[], header: string) {
   const today = format(new Date(), "yyyy-MM-dd");
   const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
@@ -173,55 +183,56 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
 
   const groupedDue = groupByType(dueOrOverdue);
 
+  const renderEntry = (e: Entry) => {
+    const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
+    const [firstLine, ...bodyLines] = e.content.split("\n");
+    const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${firstLine}`;
+
+    const detailsLines: string[] = [];
+
+    if (e.scope?.length) {
+      const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
+      detailsLines.push(`- scopes: ${scopeLinks}`);
+    }
+    if (e.dueDate) {
+      detailsLines.push(`- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
+    }
+    if (e.priority) {
+      detailsLines.push(`- prio: #${e.priority}`);
+    }
+    if (e.sourceFile) {
+      const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
+      detailsLines.push(`- ref: [#${sourceName}](../${e.sourceFile})`);
+    }
+
+    if (bodyLines.length > 0) {
+      detailsLines.push("", formatBodyAsMarkdownList(bodyLines));
+    }
+
+    const detailBlock = [
+      `<details>`,
+      `<summary>Details</summary>`,
+      ``,
+      ...detailsLines,
+      ``,
+      `</details>`
+    ].join("\n");
+
+    return [mainLine, detailBlock].join("\n");
+  };
+
   if (Object.keys(groupedDue).length) {
     content.push("\n## 🔔 Due Today or Overdue");
-    
+
     for (const type of Object.keys(groupedDue)) {
       content.push(`\n### @${type}`);
-  
       for (const e of groupedDue[type]) {
-        const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-        const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content.split("\n")[0]}`;
-        
-        const detailsLines: string[] = [];
-  
-        if (e.scope?.length) {
-          const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-          detailsLines.push(`\t- scopes: ${scopeLinks}`);
-        }
-        if (e.dueDate) {
-          detailsLines.push(`\t- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
-        }
-        if (e.priority) {
-          detailsLines.push(`\t- prio: #${e.priority}`);
-        }
-        if (e.sourceFile) {
-          const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
-          detailsLines.push(`\t- ref: [#${sourceName}](../${e.sourceFile})`);
-        }
-  
-        // Weitere indented Content-Zeilen
-        const indentedLines = e.content.split("\n").slice(1);
-        if (indentedLines.length > 0) {
-          detailsLines.push(...indentedLines.map(line => `\t - ${line.trim()}`));
-        }
-  
-        const detailBlock = [,
-          `\t<details>`,
-          `\t<summary>Details</summary>`,
-          "\t",
-          ...detailsLines,
-          "\t",
-          `\t</details>\n`
-        ].join("\n");
-
-        content.push([mainLine, detailBlock].join("\n"));
+        content.push(renderEntry(e));
       }
     }
-  
+
     content.push("\n---");
   }
-  
 
   const remainingEntries = entries.filter(e => !dueOrOverdue.includes(e));
   const groupedAll = groupByType(remainingEntries);
@@ -229,43 +240,7 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
   for (const type of Object.keys(groupedAll)) {
     content.push(`\n## @${type}`);
     for (const e of groupedAll[type]) {
-      const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-      const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${e.content.split("\n")[0]}`;
-
-      const detailsLines: string[] = [];
-      
-      if (e.scope?.length) {
-        const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-        detailsLines.push(`\t- scopes: ${scopeLinks}`);
-      }
-      if (e.dueDate) {
-        detailsLines.push(`\t- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
-      }
-      if (e.priority) {
-        detailsLines.push(`\t- prio: #${e.priority}`);
-      }
-      if (e.sourceFile) {
-        const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
-        detailsLines.push(`\t- ref: [#${sourceName}](../${e.sourceFile})`);
-      }
-      
-      // Eingeklappter Body-Inhalt (ab Zeile 2 der originalen content-Zeilen)
-      const indentedLines = e.content.split("\n").slice(1);
-      if (indentedLines.length > 0) {
-        detailsLines.push(...indentedLines.map(line => `\t - ${line.trim()}`));
-      }
-      
-      const detailBlock = [,
-        `\t<details>`,
-        `\t<summary>Details</summary>`,
-        "\t",
-        ...detailsLines,
-        "\t",
-        `\t</details>`
-      ].join("\n");
-      
-      content.push([mainLine, detailBlock].join("\n"));
-      
+      content.push(renderEntry(e));
     }
     content.push("\n---");
   }
