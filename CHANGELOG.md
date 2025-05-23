@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.6.0
+
+### Minor Changes
+
+- b321903: Updated handling of text hierarchys in mind-token texts
+
 ## 0.5.0
 
 ### Minor Changes
