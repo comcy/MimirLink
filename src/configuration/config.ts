@@ -18,6 +18,11 @@ export function loadConfig(): Config {
     }
 }
 
+export function getConfig(): void {
+    console.log(`🔧 Konfiguration geladen: ${JSON.stringify(loadConfig(), null, 4)}`);
+}
+
+
 interface Config {
     workspace: string;
     editor?: ConfigEntry
@@ -28,6 +33,3 @@ interface ConfigEntry {
     value: string;
 }
 
-
-console.log(`🔧 Konfiguration geladen: ${JSON.stringify(loadConfig(), null, 4)}`);
-console.log(`🔧 Editor config: ${JSON.stringify(loadConfig().editor, null, 4)}`);

@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.7.0
+
+### Minor Changes
+
+- Added emonis-rewriter, and added additional CLI commansds
+
 ## 0.6.0
 
 ### Minor Changes

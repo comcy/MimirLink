@@ -11,6 +11,9 @@ import { startWatchMode } from "../watcher/watch";
 import { syncImages } from "../synchronisation/images";
 import { syncTodos } from "../todos/todo";
 import { youtubeLinkRewriter } from "../utils/youtube-link-rewriter";
+import { getPackageVersion } from "../version/version";
+import { getConfig } from "../configuration/config";
+import { replaceEmojisInAllMarkdownFiles } from "../utils/emoji-rewriter";
 
 
 function processInput(input: string) {
@@ -55,6 +58,7 @@ function processInput(input: string) {
         syncImages();
         syncTodos(); // <-- diese Zeile ergänzt den Todo-Sync
         youtubeLinkRewriter();
+        replaceEmojisInAllMarkdownFiles();
         console.log("✅ Synchronisation abgeschlossen.");
     }
 
@@ -72,6 +76,14 @@ function processInput(input: string) {
 
     else if (command === "searchi") {
         interactiveSearch();
+    }
+    
+    else if (command === "version") {
+        console.log(`VERSION: ${getPackageVersion()}`);
+    }
+  
+    else if (command === "config") {
+        console.log(`Configuration: ${getConfig()}`);
     }
 
     else {
