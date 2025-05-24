@@ -72,7 +72,6 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   let dueDate: string | undefined;
   let priority: string | undefined;
 
-  // Get values from tags but DO NOT remove them yet
   let tagMatch;
   while ((tagMatch = tagRegex.exec(fullLineRaw)) !== null) {
     const tag = tagMatch[1];
@@ -85,7 +84,6 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     }
   }
 
-  // Add emoji prefix for emphasis
   let emojiPrefix = "";
   if (priority) {
     emojiPrefix += {
@@ -99,38 +97,51 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   }
 
   const fullLine = emojiPrefix + fullLineRaw.trim();
-
-  // Extract ref text (line without markdown links and emojis)
   const plainText = fullLineRaw.replace(tagRegex, "").trim();
 
   const baseIndent = baseLine.match(/^\s*/)?.[0].length ?? 0;
   let content = fullLine;
 
   let i = index + 1;
+  let usedExplicitEnd = false;
+
+  // Neue Variante: explizit durch @@ beendet
   while (i < lines.length) {
     const line = lines[i];
-    const indent = line.match(/^\s*/)?.[0].length ?? 0;
-    const isEmpty = line.trim() === "";
-    const nextLine = lines[i + 1] || "";
-    const isNextToken = nextLine.trim().match(/^@(?:TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\b/);
-  
-    // Beende, wenn Zeile leer ist und danach ein neuer Block beginnt
-    if (isEmpty && isNextToken) break;
-  
-    // Erlaube leere Zeile nur, wenn sie nicht zum nächsten Token gehört
-    if (isEmpty || indent > baseIndent) {
-      content += "\n" + line;
+    if (line.trim() === "@@") {
+      usedExplicitEnd = true;
       i++;
-    } else {
       break;
     }
+    content += "\n" + line;
+    i++;
   }
-  
+
+  // Fallback: alte Logik, falls kein @@ gefunden
+  if (!usedExplicitEnd) {
+    i = index + 1;
+    content = fullLine;
+    while (i < lines.length) {
+      const line = lines[i];
+      const indent = line.match(/^\s*/)?.[0].length ?? 0;
+      const isEmpty = line.trim() === "";
+      const nextLine = lines[i + 1] || "";
+      const isNextToken = nextLine.trim().match(/^@(?:TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\b/);
+    
+      if (isEmpty && isNextToken) break;
+    
+      if (isEmpty || indent > baseIndent) {
+        content += "\n" + line;
+        i++;
+      } else {
+        break;
+      }
+    }
+  }
 
   const sourceFileRelative = path.relative(workspace, sourceFile);
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
   const ref = `[#${sourceFileName}](${sourceFileRelative})`;
-
   const closedAt = type === "DONE" ? createdAt : undefined;
 
   return [
@@ -210,12 +221,12 @@ function writeJournalFile(filePath: string, entries: Entry[], header: string) {
     }
 
     const detailBlock = [
-      `<details>`,
-      `<summary>Details</summary>`,
-      ``,
+      `\t<details>`,
+      `\t<summary>Details</summary>`,
+      `\t`,
       ...detailsLines,
-      ``,
-      `</details>`
+      `\t`,
+      `\t</details>`
     ].join("\n");
 
     return [mainLine, detailBlock].join("\n");
