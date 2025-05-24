@@ -27,7 +27,7 @@ export interface Entry {
   priority?: string;
   createdAt: string;
   closedAt?: string;
-  type: "TODO" | "DONE" | "QUESTION" | "ANSWER" | "DECISION" | "IDEAS" | "REMINDER";
+  type: "TODO" | "DONE" | "QUESTION" | "ANSWER" | "DECISION" | "IDEA" | "REMINDER";
   sourceFile: string;
   ref: string;
 }
@@ -61,7 +61,7 @@ function getAllMarkdownFiles(dir: string): string[] {
 
 function parseEntry(lines: string[], index: number, sourceFile: string): [Entry | null, number] {
   const baseLine = lines[index];
-  const match = baseLine.match(/^\s*@(TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\s+(.+)/);
+  const match = baseLine.match(/^\s*@(TODO|DONE|QUESTION|ANSWER|DECISION|IDEA|REMINDER)\s+(.+)/);
   if (!match) return [null, index];
 
   const [, type, fullLineRaw] = match;
@@ -72,7 +72,6 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   let dueDate: string | undefined;
   let priority: string | undefined;
 
-  // Get values from tags but DO NOT remove them yet
   let tagMatch;
   while ((tagMatch = tagRegex.exec(fullLineRaw)) !== null) {
     const tag = tagMatch[1];
@@ -85,7 +84,6 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     }
   }
 
-  // Add emoji prefix for emphasis
   let emojiPrefix = "";
   if (priority) {
     emojiPrefix += {
@@ -99,43 +97,60 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   }
 
   const fullLine = emojiPrefix + fullLineRaw.trim();
-
-  // Extract ref text (line without markdown links and emojis)
   const plainText = fullLineRaw.replace(tagRegex, "").trim();
 
   const baseIndent = baseLine.match(/^\s*/)?.[0].length ?? 0;
-  let content = fullLine;
+  let bodyLines: string[] = [];
 
   let i = index + 1;
+  let usedExplicitEnd = false;
+
   while (i < lines.length) {
     const line = lines[i];
-    const indent = line.match(/^\s*/)?.[0].length ?? 0;
-    const isEmpty = line.trim() === "";
-    const nextLine = lines[i + 1] || "";
-    const isNextToken = nextLine.trim().match(/^@(?:TODO|DONE|QUESTION|ANSWER|DECISION|IDEAS|REMINDER)\b/);
-  
-    // Beende, wenn Zeile leer ist und danach ein neuer Block beginnt
-    if (isEmpty && isNextToken) break;
-  
-    // Erlaube leere Zeile nur, wenn sie nicht zum nächsten Token gehört
-    if (isEmpty || indent > baseIndent) {
-      content += "\n" + line;
+    if (line.trim() === "@@") {
+      usedExplicitEnd = true;
       i++;
-    } else {
       break;
     }
+    bodyLines.push(line);
+    i++;
   }
+
+  // Fallback auf alte Logik wenn kein @@
+  if (!usedExplicitEnd) {
+    bodyLines = [];
+    i = index + 1;
+    while (i < lines.length) {
+      const line = lines[i];
+      const indent = line.match(/^\s*/)?.[0].length ?? 0;
+      const isEmpty = line.trim() === "";
+      const nextLine = lines[i + 1] || "";
+      const isNextToken = nextLine.trim().match(/^@(?:TODO|DONE|QUESTION|ANSWER|DECISION|IDEA|REMINDER)\b/);
   
+      if (isEmpty && isNextToken) break;
+      if (isEmpty || indent > baseIndent) {
+        bodyLines.push(line);
+        i++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Clean bodyLines: strip leading indentation
+  const minIndent = Math.min(...bodyLines.filter(l => l.trim()).map(l => l.match(/^\s*/)?.[0].length ?? 0));
+  const cleanedBody = bodyLines.map(l => l.substring(minIndent)).join("\n");
+
+  const fullContent = `${fullLine}\n${cleanedBody}`.trim();
 
   const sourceFileRelative = path.relative(workspace, sourceFile);
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
   const ref = `[#${sourceFileName}](${sourceFileRelative})`;
-
   const closedAt = type === "DONE" ? createdAt : undefined;
 
   return [
     {
-      content,
+      content: fullContent,
       scope: scopeTags.length > 0 ? scopeTags : undefined,
       dueDate,
       priority,
@@ -160,129 +175,117 @@ function formatBodyAsMarkdownList(lines: string[]): string {
   }).join("\n");
 }
 
-function writeJournalFile(filePath: string, entries: Entry[], header: string) {
-  const today = format(new Date(), "yyyy-MM-dd");
-  const frontmatter = `---\ntitle: ${header}\ndate: ${today}\ntype: journal\n---`;
-  const content = [`# ${header} — ${today}`];
 
-  const dueOrOverdue = entries.filter(e =>
-    e.dueDate &&
-    e.type !== "DONE" &&
-    e.type !== "DECISION" &&
-    e.type !== "ANSWER" &&
-    (e.dueDate <= today)
-  );
+function writeJournalFile(filePath: string, entries: Entry[], title: string) {
+  if (entries.length === 0) return;
 
-  const groupByType = (list: Entry[]): Record<string, Entry[]> =>
-    list.reduce((acc, entry) => {
-      const type = entry.type;
-      if (!acc[type]) acc[type] = [];
-      acc[type].push(entry);
-      return acc;
-    }, {} as Record<string, Entry[]>);
+  const grouped: Record<Entry["type"], Entry[]> = {} as any;
 
-  const groupedDue = groupByType(dueOrOverdue);
+  for (const entry of entries) {
+    if (!grouped[entry.type]) grouped[entry.type] = [];
+    grouped[entry.type].push(entry);
+  }
 
-  const renderEntry = (e: Entry) => {
-    const checkbox = e.type === "DONE" ? "[x]" : "[ ]";
-    const [firstLine, ...bodyLines] = e.content.split("\n");
-    const mainLine = `- ${checkbox} ${e.priority ? `#${e.priority} ` : ""}${firstLine}`;
+  const typeOrder: Entry["type"][] = [
+    "TODO",
+    "REMINDER",
+    "QUESTION",
+    "IDEA",
+    "DONE",
+    "ANSWER",
+    "DECISION"
+  ];
 
-    const detailsLines: string[] = [];
+  let output = `# ${title}\n\n`;
 
-    if (e.scope?.length) {
-      const scopeLinks = e.scope.map(s => `[#${s}](../pages/${s}.md)`).join(", ");
-      detailsLines.push(`- scopes: ${scopeLinks}`);
-    }
-    if (e.dueDate) {
-      detailsLines.push(`- due: [#${e.dueDate}](../journals/${e.dueDate}.md)`);
-    }
-    if (e.priority) {
-      detailsLines.push(`- prio: #${e.priority}`);
-    }
-    if (e.sourceFile) {
-      const sourceName = path.basename(e.sourceFile, path.extname(e.sourceFile));
-      detailsLines.push(`- ref: [#${sourceName}](../${e.sourceFile})`);
-    }
+  for (const type of typeOrder) {
+    const group = grouped[type];
+    if (!group || group.length === 0) continue;
 
-    if (bodyLines.length > 0) {
-      detailsLines.push("", formatBodyAsMarkdownList(bodyLines));
-    }
+    const typeLabel = `## ${type}s`;
+    output += `${typeLabel}\n\n`;
 
-    const detailBlock = [
-      `<details>`,
-      `<summary>Details</summary>`,
-      ``,
-      ...detailsLines,
-      ``,
-      `</details>`
-    ].join("\n");
+    const sortedGroup = group.sort((a, b) => b.createdAt.localeCompare(a.createdAt, undefined, { numeric: true }));
 
-    return [mainLine, detailBlock].join("\n");
-  };
+    for (const entry of sortedGroup) {
+      const lines = entry.content.trim().split("\n");
+      const summary = lines[0];
+      const details = lines.slice(1).join("\n");
 
-  if (Object.keys(groupedDue).length) {
-    content.push("\n## 🔔 Due Today or Overdue");
+      const box = entry.type === "DONE" ? "[x]" : "[ ]";
+      output += `- ${box} ${summary}\n`;
 
-    for (const type of Object.keys(groupedDue)) {
-      content.push(`\n### @${type}`);
-      for (const e of groupedDue[type]) {
-        content.push(renderEntry(e));
+      const metadata: string[] = [];
+      if (entry.scope?.length) {
+        metadata.push(`- scopes: ${entry.scope.map(tag => `[#${tag}](../pages/${tag}.md)`).join(", ")}`);
+      }
+      if (entry.dueDate) {
+        metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
+      }
+      metadata.push(`- ref: ${entry.ref}`);
+
+      if (details || metadata.length) {
+        output += `\t<details>\n\t<summary>Details</summary>\n\n`;
+        output += metadata.map(line => `\t${line}`).join("\n") + "\n";
+        if (details) {
+          output += "\n" + details.split("\n").map(line => `\t${line}`).join("\n") + "\n";
+        }
+        output += `\t</details>\n\n`;
       }
     }
-
-    content.push("\n---");
   }
 
-  const remainingEntries = entries.filter(e => !dueOrOverdue.includes(e));
-  const groupedAll = groupByType(remainingEntries);
-
-  for (const type of Object.keys(groupedAll)) {
-    content.push(`\n## @${type}`);
-    for (const e of groupedAll[type]) {
-      content.push(renderEntry(e));
-    }
-    content.push("\n---");
-  }
-
-  fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n\n")}\n`, "utf-8");
+  fs.writeFileSync(filePath, output.trim() + "\n", "utf-8");
 }
 
-function writeGroupedJournalFile(filePath: string, entries: Entry[], tokenHeader: string) {
-  const frontmatter = `---\ntitle: ${tokenHeader}\ndate: ${format(new Date(), "yyyy-MM-dd")}\ntype: journal\n---`;
+
+function writeGroupedJournalFile(filePath: string, entries: Entry[], groupTitle: string) {
+  if (entries.length === 0) return;
+
   const grouped: Record<string, Entry[]> = {};
 
   for (const entry of entries) {
-    if (!grouped[entry.createdAt]) grouped[entry.createdAt] = [];
-    grouped[entry.createdAt].push(entry);
+    const file = entry.sourceFile || "Unknown";
+    if (!grouped[file]) grouped[file] = [];
+    grouped[file].push(entry);
   }
 
-  const content = [`# ${tokenHeader}`];
-  for (const date of Object.keys(grouped).sort().reverse()) {
-    content.push(`\n\n## ${date}`);
-    for (const entry of grouped[date]) {
-      const anchor = `#${entry.content.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`;
-      const fileLink = `[${entry.sourceFile}](../${entry.sourceFile}${anchor})`;
-      const mainLine = `- ${entry.content.split("\n")[0]}`;
+  let output = `# ${groupTitle}\n\n`;
 
-      const detailLines = entry.content.split("\n").slice(1).map(l => `\t- ${l.trim()}`);
-      detailLines.push(`\t- ref: ${fileLink}`);
-      
-      const detailBlock = [,
-        `\t<details>`,
-        `\t<summary>Details</summary>`,
-        "\t",
-        ...detailLines,
-        "\t",
-        `\t</details>`
-      ].join("\n");
-      
-      content.push(`\n### ${tokenHeader}\n\n${mainLine}\n\n${detailBlock}\n\n---`);      
+  for (const [source, groupEntries] of Object.entries(grouped)) {
+    output += `## ${source}\n\n`;
+
+    for (const entry of groupEntries) {
+      const lines = entry.content.trim().split("\n");
+      const summary = lines[0];
+      const details = lines.slice(1).join("\n");
+
+      const box = entry.type === "DONE" ? "[x]" : "[ ]";
+      output += `- ${box} ${summary}\n`;
+
+      const metadata: string[] = [];
+      if (entry.scope?.length) {
+        metadata.push(`- scopes: ${entry.scope.map(tag => `[#${tag}](../pages/${tag}.md)`).join(", ")}`);
+      }
+      if (entry.dueDate) {
+        metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
+      }
+      metadata.push(`- ref: ${entry.ref}`);
+
+      if (details || metadata.length) {
+        output += `\t<details>\n\t<summary>Details</summary>\n\n`;
+        output += metadata.map(line => `\t${line}`).join("\n") + "\n";
+        if (details) {
+          output += "\n" + details.split("\n").map(line => `\t${line}`).join("\n") + "\n";
+        }
+        output += `\t</details>\n\n`;
+      }
     }
   }
 
-  fs.writeFileSync(filePath, `${frontmatter}\n\n${content.join("\n")}\n`, "utf-8");
+  fs.writeFileSync(filePath, output.trim() + "\n", "utf-8");
 }
+
 
 export function syncTodos() {
   ensureTodosDir();
@@ -321,7 +324,7 @@ export function syncTodos() {
           case "REMINDER":
             reminders.push(entry);
             break;
-          case "IDEAS":
+          case "IDEA":
             ideas.push(entry);
             break;
         }

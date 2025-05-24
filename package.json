@@ -1,6 +1,6 @@
 {
     "name": "mimirlink",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "type": "module",
     "description": "Ein einfaches CLI-Tool für To-Dos",
     "bin": {
@@ -30,7 +30,8 @@
         "build": "tsup src/index.ts --dts --format esm,cjs --out-dir dist",
         "start": "node dist/index.js",
         "start:dev": "tsx src/index.ts",
-        "watch": "nodemon",
+        "watch:build": "nodemon --config nodemon.build.json",
+        "watch:start:dev": "nodemon --config nodemon.dev.json",
         "version": "changeset version",
         "release": "changeset publish"
     },
