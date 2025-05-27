@@ -39,6 +39,7 @@
         "@changesets/cli": "^2.29.2",
         "@types/express": "^5.0.1",
         "@types/node": "^22.14.1",
+        "live-server": "^1.2.2",
         "nodemon": "^3.1.9",
         "ts-node": "^10.9.2",
         "tsup": "^8.4.0",

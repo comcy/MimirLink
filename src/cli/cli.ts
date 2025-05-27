@@ -14,6 +14,7 @@ import { youtubeLinkRewriter } from "../utils/youtube-link-rewriter";
 import { getPackageVersion } from "../version/version";
 import { getConfig } from "../configuration/config";
 import { replaceEmojisInAllMarkdownFiles } from "../utils/emoji-rewriter";
+import { generateTimelinePage } from "../timeline/generate-timeline";
 
 
 function processInput(input: string) {
@@ -84,6 +85,9 @@ function processInput(input: string) {
   
     else if (command === "config") {
         console.log(`Configuration: ${getConfig()}`);
+    }  
+    else if (command === "timeline") {
+        generateTimelinePage();
     }
 
     else {

@@ -1,0 +1,64 @@
+<!-- templates/timeline.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Timeline</title>
+  <style>
+    body { margin: 0; overflow-x: scroll; font-family: sans-serif; }
+    canvas { background: #f9f9f9; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="timelineCanvas" width="10000" height="200"></canvas>
+
+  <script>
+    const canvas = document.getElementById('timelineCanvas');
+    const ctx = canvas.getContext('2d');
+    const startDate = new Date();
+    const daysToDraw = 365;
+
+    // Zeichne die Hauptlinie
+    ctx.beginPath();
+    ctx.moveTo(0, 100);
+    ctx.lineTo(daysToDraw * 20, 100);
+    ctx.stroke();
+
+    for (let i = 0; i < daysToDraw; i++) {
+      const x = i * 20;
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+
+      // Zeichne Tag-Linie
+      ctx.beginPath();
+      ctx.moveTo(x, 95);
+      ctx.lineTo(x, 105);
+      ctx.strokeStyle = '#ccc';
+      ctx.stroke();
+
+      // Monatsbeschriftung
+      if (date.getDate() === 1) {
+        ctx.fillStyle = '#000';
+        ctx.fillText(date.toLocaleString('default', { month: 'short' }), x + 2, 120);
+      }
+    }
+
+    // Hier werden Events eingefügt
+    const events = __EVENTS__;
+
+    events.forEach(event => {
+      const eventDate = new Date(event.date);
+      const diffDays = Math.floor((eventDate - startDate) / (1000 * 60 * 60 * 24));
+      const x = diffDays * 20;
+
+      ctx.beginPath();
+      ctx.arc(x, 100, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = 'red';
+      ctx.fill();
+
+      ctx.fillStyle = '#000';
+      ctx.fillText(event.title || 'Event', x + 8, 95);
+    });
+  </script>
+</body>
+</html>
