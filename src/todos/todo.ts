@@ -143,7 +143,7 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
 
   const fullContent = `${fullLine}\n${cleanedBody}`.trim();
 
-  const sourceFileRelative = path.relative(workspace, sourceFile);
+  const sourceFileRelative = "../" + path.relative(workspace, sourceFile); // "../" + to ensure relative path
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
   const ref = `[#${sourceFileName}](${sourceFileRelative})`;
   const closedAt = type === "DONE" ? createdAt : undefined;
@@ -222,7 +222,7 @@ function writeJournalFile(filePath: string, entries: Entry[], title: string) {
       if (entry.dueDate) {
         metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
       }
-      metadata.push(`- ref: ../${entry.ref}`);
+      metadata.push(`- ref: ${entry.ref}`);
 
       if (details || metadata.length) {
         output += `\t<details>\n\t<summary>Details</summary>\n\n`;
@@ -270,7 +270,7 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], groupTitle:
       if (entry.dueDate) {
         metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
       }
-      metadata.push(`- ref: ../${entry.ref}`);
+      metadata.push(`- ref: ${entry.ref}`);
 
       if (details || metadata.length) {
         output += `\t<details>\n\t<summary>Details</summary>\n\n`;
