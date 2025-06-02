@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interaktive Timeline</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #layout {
+      display: flex;
+      height: 100vh;
+      flex-direction: column;
+      flex-wrap: wrap;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      display: flex;
+      height: 100vh;
+      flex-direction: column;
+      flex-wrap: wrap;
+      overflow: hidden;
+      border-right: 2px solid #ccc;
+    }
+
+    #sidebar {
+      border: solid 2px grey;
+    }
+
+    #agenda {
+      width: 300px;
+      background-color: #ffffff;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    #agenda h2 {
+      margin-top: 0;
+    }
+
+    #agenda-list {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    #agenda-list li {
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    #container-wrapper {
+      padding: 16px;
+      width: 100vw;
+      height: 100vh;
+      background-color: #f5f5f5;
+      position: relative;
+      overflow: auto;
+    }
+
+    #container {
+      width: 40000px;
+      height: 100vh;
+      position: relative;
+    }
+
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 20;
+    }
+
+    #legend {
+      /* position: absolute; */
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      z-index: 10;
+    }
+
+    #legend.collapsed #legend-content {
+      display: none;
+    }
+
+    #legend-toggle {
+      cursor: pointer;
+      font-size: 12px;
+      color: blue;
+      text-decoration: underline;
+    }
+
+    #filters {
+      margin-top: 10px;
+    }
+
+    #minimap {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 200px;
+      height: 100px;
+      border: 1px solid #ccc;
+      background: white;
+      z-index: 15;
+    }
+
+    #zoom-controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 15;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 5px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #zoom-controls button {
+      margin: 2px;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+
+
+    canvas.minimap-layer {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 200px;
+      height: 100px;
+      z-index: 16;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="layout">
+    <div id="sidebar">
+
+      <div id="legend">
+        <div id="legend-toggle">Legende einklappen</div>
+        <div id="legend-content">
+          <h2>Legende</h2>
+          <div><span style="color: red">📅</span> Meeting</div>
+          <div><span style="color: blue">📌</span> Deadline</div>
+          <div><span style="color: green">🎉</span> Holiday</div>
+          <div><span style="color: gray">🔖</span> Other</div>
+          <div id="filters">
+            <label><input type="checkbox" checked value="meeting"> Meeting</label><br>
+            <label><input type="checkbox" checked value="deadline"> Deadline</label><br>
+            <label><input type="checkbox" checked value="holiday"> Holiday</label><br>
+            <label><input type="checkbox" checked value="other"> Other</label>
+          </div>
+        </div>
+      </div>
+      <div id="agenda">
+        <h2>Agenda</h2>
+        <ul id="agenda-list">
+          <!-- Filled dynamically -->
+        </ul>
+      </div>
+    </div>
+      <div id="container-wrapper">
+
+        <div id="container"></div>
+
+        <div id="zoom-controls">
+          <button onclick="zoom(1.2)">Zoom In</button>
+          <button onclick="zoom(0.8)">Zoom Out</button>
+        </div>
+
+      </div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <div id="minimap"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/konva@8.3.13/konva.min.js"></script>
+  <script>
+    const containerWrapper = document.getElementById('container-wrapper');
+    const container = document.getElementById('container');
+    const tooltip = document.getElementById('tooltip');
+    const minimap = document.getElementById('minimap');
+
+    const minimapCanvas = document.createElement('canvas');
+    minimapCanvas.classList.add('minimap-layer');
+    minimapCanvas.width = 200;
+    minimapCanvas.height = 100;
+    document.body.appendChild(minimapCanvas);
+    const minimapCtx = minimapCanvas.getContext('2d');
+
+    const stage = new Konva.Stage({
+      container: 'container',
+      width: 40000,
+      height: window.innerHeight
+    });
+
+    const layer = new Konva.Layer();
+    stage.add(layer);
+
+    const events = __EVENTS__;
+
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setMonth(startDate.getMonth() - 3);
+    const endDate = new Date(today);
+    endDate.setFullYear(endDate.getFullYear() + 1);
+
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const totalDays = Math.floor((endDate - startDate) / MS_PER_DAY);
+    const dayWidth = 100;
+
+    let zoomLevel = 1;
+
+    function drawTimeline() {
+      layer.destroyChildren();
+
+      const dayHeight = 500;
+      const headerHeight = 50;
+      const weekendFill = '#f0f0f0';
+      const monthMap = new Map();
+
+      for (let i = 0; i <= totalDays; i++) {
+        const date = new Date(startDate.getTime());
+        date.setDate(date.getDate() + i);
+
+        const x = i * dayWidth * zoomLevel;
+
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const isToday = date.toDateString() === today.toDateString();
+
+        const rect = new Konva.Rect({
+          x,
+          y: headerHeight,
+          width: dayWidth * zoomLevel,
+          height: dayHeight,
+          fill: isToday ? '#d0ebff' : isWeekend ? weekendFill : '#fff',
+          stroke: '#ccc',
+          strokeWidth: 1
+        });
+
+        const dayText = new Konva.Text({
+          x,
+          y: headerHeight + dayHeight,
+          width: dayWidth * zoomLevel,
+          align: 'center',
+          text: date.getDate().toString(),
+          fontSize: 14,
+          fill: '#000'
+        });
+
+        const weekday = new Konva.Text({
+          x,
+          y: headerHeight + dayHeight + 18,
+          width: dayWidth * zoomLevel,
+          align: 'center',
+          text: ['So','Mo','Di','Mi','Do','Fr','Sa'][date.getDay()],
+          fontSize: 12,
+          fill: '#666'
+        });
+
+        layer.add(rect, dayText, weekday);
+
+        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+        if (!monthMap.has(monthKey)) {
+          monthMap.set(monthKey, {
+            startX: x,
+            label: date.toLocaleString('de-DE', { month: 'long', year: 'numeric' })
+          });
+        }
+        monthMap.get(monthKey).endX = x + dayWidth * zoomLevel;
+      }
+
+      // 🟦 Monatsrahmen und Monatsnamen
+      for (const { startX, endX, label } of monthMap.values()) {
+        const border = new Konva.Rect({
+          x: startX,
+          y: headerHeight,
+          width: endX - startX,
+          height: dayHeight,
+          stroke: '#666',
+          strokeWidth: 2
+        });
+
+        const labelText = new Konva.Text({
+          x: startX + 5,
+          y: 10,
+          text: label,
+          fontSize: 16,
+          fontStyle: 'bold',
+          fill: '#000'
+        });
+
+        layer.add(border, labelText);
+      }
+
+      drawEvents();
+      layer.draw();
+      drawMinimap();
+    }
+
+    function drawEvents() {
+      const eventsByDay = {};
+
+      events.forEach(event => {
+        const [year, month, day] = event.date.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        const index = Math.floor((date - startDate) / MS_PER_DAY);
+
+        if (!eventsByDay[index]) eventsByDay[index] = [];
+        eventsByDay[index].push(event);
+      });
+
+      Object.entries(eventsByDay).forEach(([indexStr, dayEvents]) => {
+        const index = Number(indexStr);
+        const x = index * dayWidth * zoomLevel;
+
+        dayEvents.forEach((event, i) => {
+          const icon = new Konva.Text({
+            x,
+            y: 100 + i * 24,
+            text: {
+              meeting: '📅',
+              deadline: '📌',
+              holiday: '🎉',
+              other: '🔖'
+            }[event.type] || '🔖',
+            fontSize: 20,
+            width: dayWidth * zoomLevel,
+            align: 'center'
+          });
+
+          icon.on('mouseover', () => {
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = `${event.title} (${event.date})`;
+          });
+          icon.on('mouseout', () => tooltip.style.display = 'none');
+          icon.on('mousemove', (e) => {
+            tooltip.style.left = e.evt.clientX + 10 + 'px';
+            tooltip.style.top = e.evt.clientY + 10 + 'px';
+          });
+
+          layer.add(icon);
+        });
+      });
+    }
+
+    function zoom(factor) {
+      zoomLevel *= factor;
+      drawTimeline();
+    }
+
+    function drawMinimap() {
+      minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+      const scale = minimapCanvas.width / (totalDays * dayWidth * zoomLevel);
+
+      for (let i = 0; i <= totalDays; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const x = i * dayWidth * zoomLevel * scale;
+        if (date.getDay() === 0 || date.getDay() === 6) {
+          minimapCtx.fillStyle = '#eee';
+          minimapCtx.fillRect(x, 0, 1, minimapCanvas.height);
+        }
+      }
+
+      events.forEach(event => {
+        const date = new Date(event.date);
+        const index = Math.floor((date - startDate) / MS_PER_DAY);
+        const x = index * dayWidth * zoomLevel * scale;
+        minimapCtx.fillStyle = 'blue';
+        minimapCtx.fillRect(x, 0, 2, minimapCanvas.height);
+      });
+
+      const todayIndex = Math.floor((today - startDate) / MS_PER_DAY);
+      const todayX = todayIndex * dayWidth * zoomLevel * scale;
+      minimapCtx.fillStyle = 'red';
+      minimapCtx.fillRect(todayX, 0, 2, minimapCanvas.height);
+
+      const viewStart = containerWrapper.scrollLeft;
+      const viewWidth = containerWrapper.clientWidth;
+      minimapCtx.fillStyle = 'rgba(0,0,255,0.2)';
+      minimapCtx.fillRect(viewStart * scale, 0, viewWidth * scale, minimapCanvas.height);
+    }
+
+    minimapCanvas.addEventListener('click', (e) => {
+      const scale = minimapCanvas.width / (totalDays * dayWidth * zoomLevel);
+      const x = e.offsetX / scale;
+      containerWrapper.scrollLeft = x - containerWrapper.clientWidth / 2;
+    });
+
+    function populateAgenda(events) {
+      const list = document.getElementById('agenda-list');
+      list.innerHTML = '';
+      events.forEach(event => {
+        const li = document.createElement('li');
+        li.textContent = `${event.date}: ${event.title}`;
+        list.appendChild(li);
+      });
+    }
+
+    function scrollToToday() {
+      const index = Math.floor((today - startDate) / MS_PER_DAY);
+      const todayX = index * dayWidth * zoomLevel;
+
+      // Sichtbare Breite des Wrappers
+      const viewWidth = containerWrapper.clientWidth;
+
+      // Zentriere die Position von heute
+      const scrollLeft = todayX - viewWidth / 2;
+
+      containerWrapper.scrollLeft = scrollLeft;
+    }
+
+
+    populateAgenda(events);
+    drawTimeline();
+    scrollToToday();
+
+
+    containerWrapper.addEventListener('scroll', () => {
+      drawMinimap();
+    });
+
+    document.getElementById('legend-toggle').addEventListener('click', () => {
+      document.getElementById('legend').classList.toggle('collapsed');
+    });
+  </script>
+</body>
+</html>

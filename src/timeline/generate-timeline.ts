@@ -6,7 +6,7 @@ const config = loadConfig();
 const workspace = config.workspace;
 
 // const outputDir = path.join(workspace, "public");
-const templatePath = path.join(workspace, ".ygg", "templates", "timeline.html");
+const templatePath = path.join("../", "templates", "timeline.html");
 // const stylePath = path.join(workspace, ".ygg", "styles", "style.css");
 
 export function generateTimelinePage() {
