@@ -222,7 +222,7 @@ function writeJournalFile(filePath: string, entries: Entry[], title: string) {
       if (entry.dueDate) {
         metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
       }
-      metadata.push(`- ref: ../${entry.ref}`);
+      metadata.push(`- ref: ${entry.ref}`);
 
       if (details || metadata.length) {
         output += `\t<details>\n\t<summary>Details</summary>\n\n`;
@@ -270,7 +270,7 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], groupTitle:
       if (entry.dueDate) {
         metadata.push(`- due: [#${entry.dueDate}](../journals/${entry.dueDate}.md)`);
       }
-      metadata.push(`- ref: ../${entry.ref}`);
+      metadata.push(`- ref: ${entry.ref}`);
 
       if (details || metadata.length) {
         output += `\t<details>\n\t<summary>Details</summary>\n\n`;
