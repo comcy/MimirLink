@@ -18,6 +18,7 @@ export function syncTags() {
         : {};
 
     const seenTags = new Set<string>();
+    const fileToTagsMap: Record<string, string[]> = {};
 
     for (const file of markdownFiles) {
         const relPath = path.relative(workspace, file).replace(/\\/g, "/");
@@ -31,6 +32,8 @@ export function syncTags() {
 
         const content = fs.readFileSync(file, "utf8");
         const tags = extractAllTags(content);
+
+        fileToTagsMap[relPath] = tags;
 
         for (const tag of tags) {
             seenTags.add(tag);
@@ -54,18 +57,21 @@ export function syncTags() {
         }
     }
 
-    // Clean orphan tags (exclude journals/pages that exist independently)
+    // Aktualisiere tagMap: Entferne Tags ohne Referenzen und ohne existierende Datei
     for (const tag in tagMap) {
-        if (!seenTags.has(tag)) {
-            const filePath = path.join(workspace, tagMap[tag].path);
-            if (fs.existsSync(filePath)) {
-                const content = fs.readFileSync(filePath, "utf8");
-                const stillUsed = extractAllTags(content).length > 0;
-                if (!stillUsed) {
-                    fs.unlinkSync(filePath);
-                    delete tagMap[tag];
-                }
-            }
+        const tagFilePath = path.join(workspace, tagMap[tag].path);
+
+        // Entferne nicht mehr referenzierte Seiten aus der pages-Liste
+        tagMap[tag].pages = tagMap[tag].pages.filter(page => {
+            const tagsInFile = fileToTagsMap[page] || [];
+            return tagsInFile.includes(tag);
+        });
+
+        const hasReferences = tagMap[tag].pages.length > 0 || seenTags.has(tag);
+
+        // Entferne den Tag, wenn keine Referenzen mehr existieren und die Datei gelöscht wurde
+        if (!hasReferences && !fs.existsSync(tagFilePath)) {
+            delete tagMap[tag];
         }
     }
 
