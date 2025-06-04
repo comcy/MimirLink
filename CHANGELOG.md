@@ -1,5 +1,17 @@
 # mimirlink
 
+## 0.10.0
+
+### Minor Changes
+
+- Fixed issues with relative paths and improved tag handling by cleanup approaches
+
+## 0.9.0
+
+### Minor Changes
+
+- Fixed references for items on today page to now directly link the related source file
+
 ## 0.8.0
 
 ### Minor Changes

@@ -143,7 +143,7 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
 
   const fullContent = `${fullLine}\n${cleanedBody}`.trim();
 
-  const sourceFileRelative = path.relative(workspace, sourceFile);
+  const sourceFileRelative = "../" + path.relative(workspace, sourceFile); // "../" + to ensure relative path
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
   const ref = `[#${sourceFileName}](${sourceFileRelative})`;
   const closedAt = type === "DONE" ? createdAt : undefined;
