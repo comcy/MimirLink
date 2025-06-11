@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.11.0
+
+### Minor Changes
+
+- Added page refernces as backlinks from referenced pages
+
 ## 0.10.0
 
 ### Minor Changes
