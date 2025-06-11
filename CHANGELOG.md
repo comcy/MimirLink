@@ -1,5 +1,11 @@
 # mimirlink
 
+## 0.12.0
+
+### Minor Changes
+
+- Handling loitering images in a workspace
+
 ## 0.11.0
 
 ### Minor Changes
