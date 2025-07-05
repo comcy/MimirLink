@@ -4,13 +4,14 @@ import { createPage } from "../notes/pages/page";
 import { createJournalEntry } from "../notes/journals/journal";
 import { loadConfig } from "../configuration/config";
 import { updateFrontmatterUpdatedAt } from "../notes/base/frontmatter";
+import { createFileRegistry } from "../utils/file-registry";
 
 const config = loadConfig();
 const workspace = config.workspace;
 const TAGS_JSON_PATH = path.join(workspace, ".ygg", "tags.json");
 
 export function syncTags() {
-    const markdownFiles = findMarkdownFiles(workspace);
+    const fileRegistry = createFileRegistry(workspace);
     const tagsDir = path.join(workspace, ".ygg");
 
     const tagMap: Record<string, { pages: string[], path: string }> = fs.existsSync(TAGS_JSON_PATH)
@@ -19,21 +20,21 @@ export function syncTags() {
 
     const seenTags = new Set<string>();
     const fileToTagsMap: Record<string, string[]> = {};
+    const filesToWrite: Record<string, string> = {};
 
     // Erste Phase: Tags sammeln und verarbeiten
-    for (const file of markdownFiles) {
-        const relPath = path.relative(workspace, file).replace(/\\/g, "/");
-        const oldContent = fs.readFileSync(file, "utf8");
-        const rendered = renderWithLinkedTags(oldContent, file);
+    for (const relPath in fileRegistry) {
+        const fileData = fileRegistry[relPath];
+        const { filePath, content } = fileData;
 
-        if (rendered !== oldContent) {
+        const rendered = renderWithLinkedTags(content, filePath);
+
+        if (rendered !== content) {
             const updated = updateFrontmatterUpdatedAt(rendered);
-            fs.writeFileSync(file, updated, "utf8");
+            filesToWrite[filePath] = updated;
         }
 
-        const content = fs.readFileSync(file, "utf8");
-        const tags = extractAllTags(content);
-
+        const tags = extractAllTags(rendered);
         fileToTagsMap[relPath] = tags;
 
         for (const tag of tags) {
@@ -62,7 +63,6 @@ export function syncTags() {
     for (const tag in tagMap) {
         const tagFilePath = path.join(workspace, tagMap[tag].path);
 
-        // Entferne nicht mehr referenzierte Seiten aus der pages-Liste
         tagMap[tag].pages = tagMap[tag].pages.filter(page => {
             const tagsInFile = fileToTagsMap[page] || [];
             return tagsInFile.includes(tag);
@@ -70,22 +70,25 @@ export function syncTags() {
 
         const hasReferences = tagMap[tag].pages.length > 0 || seenTags.has(tag);
 
-        // Entferne den Tag, wenn keine Referenzen mehr existieren und die Datei gelöscht wurde
         if (!hasReferences && !fs.existsSync(tagFilePath)) {
             delete tagMap[tag];
         }
     }
 
     // Zweite Phase: Page References zu allen Seiten hinzufügen
-    updatePageReferences(tagMap);
+    updatePageReferences(tagMap, filesToWrite);
 
     fs.mkdirSync(tagsDir, { recursive: true });
     fs.writeFileSync(TAGS_JSON_PATH, JSON.stringify(tagMap, null, 2), "utf8");
+
+    for (const filePath in filesToWrite) {
+        fs.writeFileSync(filePath, filesToWrite[filePath], "utf8");
+    }
+
     console.log("Tags synchronisiert, verlinkt und Page References aktualisiert.");
 }
 
-function updatePageReferences(tagMap: Record<string, { pages: string[], path: string }>) {
-    // Für jede Tag-Datei die Page References hinzufügen
+function updatePageReferences(tagMap: Record<string, { pages: string[], path: string }>, filesToWrite: Record<string, string>) {
     for (const [tagName, tagData] of Object.entries(tagMap)) {
         const tagFilePath = path.join(workspace, tagData.path);
         
@@ -93,12 +96,12 @@ function updatePageReferences(tagMap: Record<string, { pages: string[], path: st
             continue;
         }
 
-        const content = fs.readFileSync(tagFilePath, "utf8");
+        const content = filesToWrite[tagFilePath] || fs.readFileSync(tagFilePath, "utf8");
         const updatedContent = addPageReferencesSection(content, tagData.pages, tagFilePath);
         
         if (updatedContent !== content) {
             const finalContent = updateFrontmatterUpdatedAt(updatedContent);
-            fs.writeFileSync(tagFilePath, finalContent, "utf8");
+            filesToWrite[tagFilePath] = finalContent;
         }
     }
 }
@@ -144,19 +147,7 @@ function addPageReferencesSection(content: string, referencingPages: string[], c
     return cleanContent + pageReferencesSection;
 }
 
-function findMarkdownFiles(dir: string): string[] {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    return entries.flatMap(entry => {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory() && entry.name !== ".ygg") {
-            return findMarkdownFiles(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith(".md")) {
-            return [fullPath];
-        } else {
-            return [];
-        }
-    });
-}
+import { findMarkdownFiles } from "../utils/file-scanner";
 
 function extractAllTags(content: string): string[] {
     const tagMatches = [...content.matchAll(/(^|\s)#([a-zA-Z0-9-_]+)/g)];
@@ -179,7 +170,7 @@ export function renderWithLinkedTags(content: string, filePath: string): string 
         existingLinks.add(match.index);
     }
 
-    return content.replace(/(^|\s)(#[a-zA-Z0-9-_]+)/g, (fullMatch, leadingSpace, tag, offset) => {
+    return content.replace(/(^|\s)(?<!\[)#([a-zA-Z0-9-_]+)/g, (fullMatch, leadingSpace, tagName, offset) => {
         if (
             codeBlocks.some(([start, end]) => offset >= start && offset < end) ||
             existingLinks.has(offset)

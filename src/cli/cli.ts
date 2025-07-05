@@ -14,6 +14,10 @@ import { youtubeLinkRewriter } from "../utils/youtube-link-rewriter";
 import { getPackageVersion } from "../version/version";
 import { getConfig } from "../configuration/config";
 import { replaceEmojisInAllMarkdownFiles } from "../utils/emoji-rewriter";
+import { trackEdit } from "../utils/edit-tracker";
+import { createEditHeatmap } from "../viewer/edit-heatmap";
+import { writeHeatmapSVG } from "../heatmap/generate-svg-heatmap";
+import { printConsoleEditHeatmap } from "../heatmap/console-edit-heatmap";
 
 
 function processInput(input: string) {
@@ -59,6 +63,7 @@ function processInput(input: string) {
         syncTodos(); // <-- diese Zeile ergänzt den Todo-Sync
         youtubeLinkRewriter();
         replaceEmojisInAllMarkdownFiles();
+        trackEdit();
         console.log("✅ Synchronisation abgeschlossen.");
     }
 
@@ -72,6 +77,7 @@ function processInput(input: string) {
     
     else if (command === "static") {
         startStaticSiteGeneration();
+        createEditHeatmap();
     }
 
     else if (command === "searchi") {
@@ -84,6 +90,14 @@ function processInput(input: string) {
   
     else if (command === "config") {
         console.log(`Configuration: ${getConfig()}`);
+    }
+
+    else if (command === "svg-heatmap") {
+        writeHeatmapSVG();
+    }
+
+    else if (command === "console-heatmap") {
+        printConsoleEditHeatmap();
     }
 
     else {

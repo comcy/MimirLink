@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { loadConfig } from "../configuration/config";
 import { format } from "date-fns";
+import { createFileRegistry } from "../utils/file-registry";
 
 const config = loadConfig();
 const workspace = config.workspace;
@@ -46,19 +47,6 @@ function saveEntries(file: string, entries: Entry[]) {
   fs.writeFileSync(file, JSON.stringify(entries, null, 2), "utf-8");
 }
 
-function getAllMarkdownFiles(dir: string): string[] {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  return entries.flatMap((entry) => {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      return getAllMarkdownFiles(fullPath);
-    } else if (entry.isFile() && fullPath.endsWith(".md")) {
-      return [fullPath];
-    }
-    return [];
-  });
-}
-
 function parseEntry(lines: string[], index: number, sourceFile: string): [Entry | null, number] {
   const baseLine = lines[index];
   const match = baseLine.match(/^\s*@(TODO|DONE|QUESTION|ANSWER|DECISION|IDEA|REMINDER)\s+(.+)/);
@@ -67,7 +55,7 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   const [, type, fullLineRaw] = match;
   const createdAt = format(new Date(), "yyyy-MM-dd");
 
-  const tagRegex = /\[#([^\]]+)\]\([^)]+\)/g;
+  const tagRegex = /^\[#([^\]]+)\]\([^)]+\)/g;
   let scopeTags: string[] = [];
   let dueDate: string | undefined;
   let priority: string | undefined;
@@ -116,7 +104,6 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     i++;
   }
 
-  // Fallback auf alte Logik wenn kein @@
   if (!usedExplicitEnd) {
     bodyLines = [];
     i = index + 1;
@@ -137,13 +124,12 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
     }
   }
 
-  // Clean bodyLines: strip leading indentation
   const minIndent = Math.min(...bodyLines.filter(l => l.trim()).map(l => l.match(/^\s*/)?.[0].length ?? 0));
   const cleanedBody = bodyLines.map(l => l.substring(minIndent)).join("\n");
 
   const fullContent = `${fullLine}\n${cleanedBody}`.trim();
 
-  const sourceFileRelative = "../" + path.relative(workspace, sourceFile); // "../" + to ensure relative path
+  const sourceFileRelative = "../" + path.relative(workspace, sourceFile);
   const sourceFileName = path.basename(sourceFile, path.extname(sourceFile));
   const ref = `[#${sourceFileName}](${sourceFileRelative})`;
   const closedAt = type === "DONE" ? createdAt : undefined;
@@ -164,20 +150,8 @@ function parseEntry(lines: string[], index: number, sourceFile: string): [Entry 
   ];
 }
 
-
-function formatBodyAsMarkdownList(lines: string[]): string {
-  return lines.map(line => {
-    if (!line.trim()) return "";
-    const indentMatch = line.match(/^(\s*)/);
-    const indent = indentMatch ? indentMatch[1].length : 0;
-    const bulletLevel = Math.floor(indent / 2); // oder 1, je nach Format
-    return `${"  ".repeat(bulletLevel)}- ${line.trim()}`;
-  }).join("\n");
-}
-
-
-function writeJournalFile(filePath: string, entries: Entry[], title: string) {
-  if (entries.length === 0) return;
+function writeJournalFile(entries: Entry[], title: string): string {
+  if (entries.length === 0) return "";
 
   const grouped: Record<Entry["type"], Entry[]> = {} as any;
 
@@ -186,15 +160,7 @@ function writeJournalFile(filePath: string, entries: Entry[], title: string) {
     grouped[entry.type].push(entry);
   }
 
-  const typeOrder: Entry["type"][] = [
-    "TODO",
-    "REMINDER",
-    "QUESTION",
-    "IDEA",
-    "DONE",
-    "ANSWER",
-    "DECISION"
-  ];
+  const typeOrder: Entry["type"][] = ["TODO", "REMINDER", "QUESTION", "IDEA", "DONE", "ANSWER", "DECISION"];
 
   let output = `# ${title}\n\n`;
 
@@ -235,12 +201,11 @@ function writeJournalFile(filePath: string, entries: Entry[], title: string) {
     }
   }
 
-  fs.writeFileSync(filePath, output.trim() + "\n", "utf-8");
+  return output.trim() + "\n";
 }
 
-
-function writeGroupedJournalFile(filePath: string, entries: Entry[], groupTitle: string) {
-  if (entries.length === 0) return;
+function writeGroupedJournalFile(entries: Entry[], groupTitle: string): string {
+  if (entries.length === 0) return "";
 
   const grouped: Record<string, Entry[]> = {};
 
@@ -283,12 +248,13 @@ function writeGroupedJournalFile(filePath: string, entries: Entry[], groupTitle:
     }
   }
 
-  fs.writeFileSync(filePath, output.trim() + "\n", "utf-8");
+  return output.trim() + "\n";
 }
-
 
 export function syncTodos() {
   ensureTodosDir();
+  const fileRegistry = createFileRegistry(workspace);
+  const filesToWrite: Record<string, string> = {};
 
   const todos: Entry[] = [];
   const done: Entry[] = [];
@@ -298,35 +264,22 @@ export function syncTodos() {
   const reminders: Entry[] = [];
   const ideas: Entry[] = [];
 
-  const allFiles = getAllMarkdownFiles(workspace);
+  for (const relPath in fileRegistry) {
+    const fileData = fileRegistry[relPath];
+    const { filePath, content } = fileData;
+    const lines = content.split("\n");
 
-  for (const file of allFiles) {
-    const lines = fs.readFileSync(file, "utf-8").split("\n");
     for (let i = 0; i < lines.length; i++) {
-      const [entry, newIndex] = parseEntry(lines, i, file);
+      const [entry, newIndex] = parseEntry(lines, i, filePath);
       if (entry) {
         switch (entry.type) {
-          case "TODO":
-            todos.push(entry);
-            break;
-          case "DONE":
-            done.push(entry);
-            break;
-          case "QUESTION":
-            questions.push(entry);
-            break;
-          case "ANSWER":
-            answers.push(entry);
-            break;
-          case "DECISION":
-            decisions.push(entry);
-            break;
-          case "REMINDER":
-            reminders.push(entry);
-            break;
-          case "IDEA":
-            ideas.push(entry);
-            break;
+          case "TODO": todos.push(entry); break;
+          case "DONE": done.push(entry); break;
+          case "QUESTION": questions.push(entry); break;
+          case "ANSWER": answers.push(entry); break;
+          case "DECISION": decisions.push(entry); break;
+          case "REMINDER": reminders.push(entry); break;
+          case "IDEA": ideas.push(entry); break;
         }
         i = newIndex;
       }
@@ -347,8 +300,12 @@ export function syncTodos() {
   const filteredDone = done.filter(d => d.closedAt === today || d.closedAt === yesterday);
   const sortedTodos = [...todos, ...reminders, ...questions, ...ideas, ...filteredDone].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  writeJournalFile(TODAY_PATH, sortedTodos, "My Day");
-  writeGroupedJournalFile(QUESTION_PATH, questions, "@QUESTION");
-  writeGroupedJournalFile(ANSWER_PATH, answers, "@ANSWER");
-  writeGroupedJournalFile(DECISION_PATH, decisions, "@DECISION");
+  filesToWrite[TODAY_PATH] = writeJournalFile(sortedTodos, "My Day");
+  filesToWrite[QUESTION_PATH] = writeGroupedJournalFile(questions, "@QUESTION");
+  filesToWrite[ANSWER_PATH] = writeGroupedJournalFile(answers, "@ANSWER");
+  filesToWrite[DECISION_PATH] = writeGroupedJournalFile(decisions, "@DECISION");
+
+  for (const filePath in filesToWrite) {
+    fs.writeFileSync(filePath, filesToWrite[filePath], "utf-8");
+  }
 }
