@@ -1,0 +1,73 @@
+.cm-heading-1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+  margin-top: 1rem;
+}
+.cm-heading-2 {
+  font-size: 2rem;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.4rem;
+  margin-top: 0.8rem;
+}
+.cm-heading-3 {
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+.cm-heading-4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.cm-heading-5 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.cm-heading-6 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cm-emphasis {
+  font-style: italic;
+}
+
+.cm-strong-emphasis {
+  font-weight: bold;
+}
+
+.cm-bullet {
+  color: #888;
+  margin-right: 0.5em;
+}
+
+.cm-blockquote {
+  border-left: 4px solid #007bff;
+  padding-left: 1em;
+  background-color: #e6f2ff;
+  color: #333;
+}
+
+.cm-code-block {
+  background-color: #f6f8fa;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  position: relative;
+}
+
+.cm-language-badge {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  background-color: #f6f8fa;
+  color: #666;
+  font-size: 0.7em;
+  font-style: italic;
+  padding: 0.1em 0.5em;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.cm-active-line {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
