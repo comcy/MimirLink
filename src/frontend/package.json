@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.19.1",
     "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/lang-yaml": "^6.1.2",
     "@codemirror/language": "^6.11.3",
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/state": "^6.5.2",
@@ -22,6 +24,7 @@
     "@types/marked": "^5.0.2",
     "autoprefixer": "^10.4.21",
     "codemirror": "^6.0.2",
+    "dayjs": "^1.11.19",
     "dompurify": "^3.3.0",
     "marked": "^17.0.0",
     "postcss": "^8.5.6",

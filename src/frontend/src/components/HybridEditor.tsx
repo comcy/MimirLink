@@ -2,16 +2,27 @@ import { onMount, onCleanup } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import "./editor-styles.css";
 import { EditorState } from "@codemirror/state";
-import { EditorView, Decoration, WidgetType } from "@codemirror/view";
+import { EditorView, Decoration, WidgetType, lineNumbers } from "@codemirror/view";
 import type { DecorationSet, ViewUpdate, Range } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { syntaxTree } from "@codemirror/language";
+import { yamlFrontmatter } from "@codemirror/lang-yaml";
+import { syntaxTree, syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
+import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
+import type { Completion, CompletionResult } from "@codemirror/autocomplete";
+import dayjs from "dayjs";
 
-type HybridEditorProps = {
-  value: Accessor<string>;
-  setValue: Setter<string>;
+const emojiMap: { [key: string]: string } = {
+  smile: '😄',
+  laugh: '😆',
+  wink: '😉',
+  heart: '❤️',
+  tada: '🎉',
+  warning: '⚠️',
+  check: '✅',
 };
+
+// --- Widgets ---
 
 class BulletWidget extends WidgetType {
   toDOM() {
@@ -34,6 +45,40 @@ class LanguageBadgeWidget extends WidgetType {
   }
 }
 
+class CheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean, readonly pos: number) {
+    super();
+  }
+
+  toDOM(view: EditorView) {
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = this.checked;
+    checkbox.className = "cm-task-checkbox";
+    checkbox.addEventListener("click", (event) => {
+      const newText = this.checked ? "[ ]" : "[x]";
+      view.dispatch({
+        changes: { from: this.pos, to: this.pos + 3, insert: newText }
+      });
+      event.preventDefault();
+    });
+    return checkbox;
+  }
+}
+
+class IconWidget extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+  toDOM() {
+    const span = document.createElement("span");
+    span.textContent = this.text;
+    return span;
+  }
+}
+
+// --- Plugins ---
+
 function unifiedDecorationPlugin() {
   return EditorView.decorations.of((view) => {
     const builder: Range<Decoration>[] = [];
@@ -51,27 +96,43 @@ function unifiedDecorationPlugin() {
             return;
           }
 
+          const isSameLine = (from: number, to: number) => view.state.doc.lineAt(from).number === view.state.doc.lineAt(to).number;
+
+          if (node.name === "Task") {
+            const taskMarker = node.node.firstChild;
+            if (taskMarker && taskMarker.name === "TaskMarker" && isSameLine(taskMarker.from, taskMarker.to)) {
+              const checked = view.state.doc.sliceString(taskMarker.from, taskMarker.to) === "[x]";
+              builder.push(Decoration.replace({
+                widget: new CheckboxWidget(checked, taskMarker.from),
+              }).range(taskMarker.from, taskMarker.to));
+            }
+            return false;
+          }
+
           if (node.name === "FencedCode") {
+            let isFirstLine = true;
             for (let pos = node.from; pos <= node.to; ) {
               const line = view.state.doc.lineAt(pos);
-              builder.push(Decoration.line({ attributes: { class: "cm-code-block" } }).range(line.from));
+              const lineClass = isFirstLine ? "cm-code-block cm-code-block-first-line" : "cm-code-block";
+              builder.push(Decoration.line({ attributes: { class: lineClass } }).range(line.from));
+              isFirstLine = false;
               pos = line.to + 1;
             }
 
             const firstMark = node.node.firstChild;
             const lastMark = node.node.lastChild;
-            if (firstMark && firstMark.name === "CodeMark") {
+            if (firstMark && firstMark.name === "CodeMark" && isSameLine(firstMark.from, firstMark.to)) {
               builder.push(Decoration.replace({}).range(firstMark.from, firstMark.to));
+              
               const infoNode = firstMark.nextSibling;
-              if (infoNode && infoNode.name === "CodeInfo") {
+              if (infoNode && infoNode.name === "CodeInfo" && isSameLine(infoNode.from, infoNode.to)) {
                 const language = view.state.doc.sliceString(infoNode.from, infoNode.to);
-                builder.push(Decoration.widget({
+                builder.push(Decoration.replace({
                   widget: new LanguageBadgeWidget(language),
-                  side: 1
-                }).range(firstMark.to));
+                }).range(infoNode.from, infoNode.to));
               }
             }
-            if (lastMark && lastMark.name === "CodeMark") {
+            if (lastMark && lastMark.name === "CodeMark" && isSameLine(lastMark.from, lastMark.to)) {
               builder.push(Decoration.replace({}).range(lastMark.from, lastMark.to));
             }
             return false;
@@ -81,18 +142,44 @@ function unifiedDecorationPlugin() {
             for (let pos = node.from; pos <= node.to; ) {
               const line = view.state.doc.lineAt(pos);
               builder.push(Decoration.line({ attributes: { class: "cm-blockquote" } }).range(line.from));
-              const quoteMark = syntaxTree(view.state).cursorAt(line.from).node.firstChild;
-              if (quoteMark && quoteMark.name === "QuoteMark") {
-                builder.push(Decoration.replace({}).range(quoteMark.from, quoteMark.to));
-              }
+              
+              syntaxTree(view.state).iterate({
+                from: line.from,
+                to: line.to,
+                enter: (innerNode) => {
+                  if (innerNode.name === "QuoteMark" && isSameLine(innerNode.from, innerNode.to)) {
+                    builder.push(Decoration.replace({}).range(innerNode.from, innerNode.to));
+                  }
+                }
+              });
+              
               pos = line.to + 1;
+            }
+            return false;
+          }
+
+          if (node.name === "Frontmatter") {
+            const firstMark = node.node.firstChild;
+            const lastMark = node.node.lastChild;
+            if (firstMark && firstMark.name === "DashLine" && lastMark && lastMark.name === "DashLine") {
+              // Apply badge to the first dash line
+              const firstLine = view.state.doc.lineAt(firstMark.from);
+              builder.push(Decoration.line({ 
+                attributes: { 
+                  class: "cm-frontmatter-first-line",
+                  "data-frontmatter-badge": "frontmatter" 
+                } 
+              }).range(firstLine.from));
+
+              // Apply style to the entire block
+              builder.push(Decoration.mark({ class: "cm-frontmatter" }).range(node.from, node.to));
             }
             return false;
           }
 
           if (node.name.startsWith("ATXHeading")) {
             const mark = node.node.firstChild;
-            if (mark && mark.name === "HeaderMark") {
+            if (mark && mark.name === "HeaderMark" && isSameLine(mark.from, mark.to)) {
               builder.push(Decoration.replace({}).range(mark.from, mark.to));
               builder.push(
                 Decoration.mark({
@@ -106,7 +193,7 @@ function unifiedDecorationPlugin() {
           if (node.name === "StrongEmphasis" || node.name === "Emphasis") {
             const firstMark = node.node.firstChild;
             const lastMark = node.node.lastChild;
-            if (firstMark && firstMark.name === "EmphasisMark" && lastMark && lastMark.name === "EmphasisMark") {
+            if (firstMark && firstMark.name === "EmphasisMark" && lastMark && lastMark.name === "EmphasisMark" && isSameLine(firstMark.from, firstMark.to) && isSameLine(lastMark.from, lastMark.to)) {
               builder.push(Decoration.replace({}).range(firstMark.from, firstMark.to));
               builder.push(Decoration.replace({}).range(lastMark.from, lastMark.to));
               const className = node.name === "StrongEmphasis" ? "cm-strong-emphasis" : "cm-emphasis";
@@ -114,15 +201,40 @@ function unifiedDecorationPlugin() {
             }
             return false;
           }
+
+          if (node.name === "InlineCode") {
+            const firstMark = node.node.firstChild;
+            const lastMark = node.node.lastChild;
+            if (firstMark && firstMark.name === "CodeMark" && lastMark && lastMark.name === "CodeMark" && isSameLine(firstMark.from, firstMark.to) && isSameLine(lastMark.from, lastMark.to)) {
+              builder.push(Decoration.replace({}).range(firstMark.from, firstMark.to));
+              builder.push(Decoration.replace({}).range(lastMark.from, lastMark.to));
+              builder.push(Decoration.mark({ class: "cm-inline-code" }).range(firstMark.to, lastMark.from));
+            }
+            return false;
+          }
           
           if (node.name === "ListItem") {
-            const mark = node.node.firstChild;
-            if (mark && mark.name === "ListMark") {
-              const markText = view.state.doc.sliceString(mark.from, mark.to);
-              if (markText === "-" || markText === "*" || markText === "+") {
-                builder.push(Decoration.replace({ widget: new BulletWidget() }).range(mark.from, mark.to));
+            let hasTaskChild = false;
+            let child = node.node.firstChild;
+            while(child) {
+              if (child.name === "Task") {
+                hasTaskChild = true;
+                break;
               }
+              child = child.nextSibling;
             }
+
+              const mark = node.node.firstChild;
+              if (mark && mark.name === "ListMark" && isSameLine(mark.from, mark.to)) {
+                if (hasTaskChild) {
+                  builder.push(Decoration.replace({}).range(mark.from, mark.to));
+                } else {
+                  const markText = view.state.doc.sliceString(mark.from, mark.to);
+                  if (markText === "-" || markText === "*" || markText === "+") {
+                    builder.push(Decoration.replace({ widget: new BulletWidget() }).range(mark.from, mark.to));
+                  }
+                }
+              }          
           }
         },
       });
@@ -137,6 +249,105 @@ function unifiedDecorationPlugin() {
   });
 }
 
+function iconEmojiPlugin() {
+  return EditorView.decorations.of((view) => {
+    const builder: Range<Decoration>[] = [];
+    const cursor = view.state.selection.main.head;
+
+    for (const { from, to } of view.visibleRanges) {
+      const text = view.state.doc.sliceString(from, to);
+      
+      for (const match of text.matchAll(/:([a-z_]+):/g)) {
+        const start = from + match.index!;
+        const end = start + match[0].length;
+        const word = match[1];
+        if (view.state.doc.lineAt(start).number !== view.state.doc.lineAt(end).number) continue;
+        
+        if (cursor >= start && cursor <= end) continue;
+
+        if (emojiMap[word]) {
+          builder.push(Decoration.replace({
+            widget: new IconWidget(emojiMap[word]),
+          }).range(start, end));
+        }
+      }
+
+      for (const match of text.matchAll(/(\(!\)|\(\/\))/g)) {
+        const start = from + match.index!;
+        const end = start + match[0].length;
+        const iconText = match[1];
+        if (view.state.doc.lineAt(start).number !== view.state.doc.lineAt(end).number) continue;
+
+        if (cursor >= start && cursor <= end) continue;
+
+        if (iconText === '(!)') {
+          builder.push(Decoration.replace({
+            widget: new IconWidget(emojiMap['warning']),
+          }).range(start, end));
+        } else if (iconText === '(/)') {
+          builder.push(Decoration.replace({
+            widget: new IconWidget(emojiMap['check']),
+          }).range(start, end));
+        }
+      }
+    }
+    
+    return Decoration.set(builder.sort((a, b) => a.from - b.from));
+  });
+}
+
+const slashCommands = (context: CompletionContext): CompletionResult | null => {
+  let word = context.matchBefore(/\/\w*/);
+  if (!word || (word.from === word.to && !context.explicit)) return null;
+
+  const options: Completion[] = [
+    {
+      label: "/today",
+      apply: (view, completion, from, to) => {
+        const today = dayjs().format('YYYY-MM-DD');
+        view.dispatch({
+          changes: { from, to, insert: `[[${today}]]` }
+        });
+      },
+      type: "text",
+      detail: "Insert today's date as a wiki link",
+    },
+    {
+      label: "/task",
+      apply: (view, completion, from, to) => {
+        view.dispatch({
+          changes: { from, to, insert: "- [ ] " }
+        });
+      },
+      type: "text",
+      detail: "Insert a task list item",
+    },
+    {
+      label: "/frontmatter",
+      apply: (view, completion, from, to) => {
+        const frontmatter = `---
+title: 
+date: ${dayjs().format('YYYY-MM-DD')}
+tags: 
+---
+`;
+        view.dispatch({
+          changes: { from, to, insert: frontmatter }
+        });
+      },
+      type: "text",
+      detail: "Insert a YAML frontmatter block",
+    },
+  ];
+
+  return {
+    from: word.from,
+    options: options.filter(option => option.label.startsWith(word!.text)),
+    validFor: /^\w*$/,
+  };
+};
+
+// --- Main Component ---
 
 export function HybridEditor(props: HybridEditorProps) {
   let editorRef: HTMLDivElement | undefined;
@@ -153,10 +364,19 @@ export function HybridEditor(props: HybridEditorProps) {
       const state = EditorState.create({
         doc: props.value(),
         extensions: [
-          markdown({ base: markdownLanguage, codeLanguages: languages }),
+          yamlFrontmatter({
+            content: markdown({ 
+              base: markdownLanguage, 
+              codeLanguages: languages,
+            })
+          }),
+          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          lineNumbers(),
           EditorView.lineWrapping,
           updateListener,
           unifiedDecorationPlugin(),
+          iconEmojiPlugin(),
+          autocompletion({ override: [slashCommands] }),
         ],
       });
 

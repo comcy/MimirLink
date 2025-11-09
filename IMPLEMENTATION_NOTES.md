@@ -4,56 +4,70 @@ This document summarizes the current state of the Markdown editor implementation
 
 ## 1. Project Goal
 
-The primary goal is to create a hybrid WYSIWYG (What You See Is What You Get) Markdown editor using **SolidJS** and **CodeMirror 6**. The editor should render Markdown syntax as styled text when the user's cursor is not on the element, and show the raw Markdown source when the cursor is active on that line.
+The primary goal is to create a feature-rich, hybrid WYSIWYG (What You See Is What You Get) Markdown editor using **SolidJS** and **CodeMirror 6**. The editor should render Markdown syntax as styled text when the user's cursor is not on the element, and show the raw Markdown source when the cursor is active on that line.
 
 ## 2. Current Status
 
+The application now features a two-panel layout: a left-side menu and a main editor area.
+
+### Editor Features
 The editor is functional and provides a hybrid preview for the following Markdown elements:
 
 -   **Headings** (H1-H6)
 -   **Bold** (`**text**`)
 -   **Italic** (`*text*`)
+-   **Inline Code** (` `code` `)
 -   **Blockquotes** (`> text`)
 -   **Unordered Lists** (`-`, `*`, `+`)
 -   **Ordered Lists** (e.g., `1.`)
--   **Fenced Code Blocks** (```` ``` ````) with language badge
+-   **Fenced Code Blocks** (```` ``` ````) with language badge and syntax highlighting.
+-   **Emoji & Icons**: Renders `:word:` style emoji and Confluence-style icons like `(!)` and `(/)`.
+-   **Frontmatter**: YAML frontmatter blocks are now correctly parsed and displayed with a distinct visual frame.
+-   **Task Checkboxes**: Markdown task list items (`- [ ] `) are rendered as clickable checkboxes.
 
-The editor also implements a feature where the active line is displayed in a monospace font for a clear editing focus.
+**General editor enhancements include:**
+-   **Line Numbers**: Displayed in the gutter.
+-   **Full Viewport Height**: The editor and side panel fill the entire screen.
+-   **Code Ligatures**: Enabled for "Fira Code" font in code blocks and the active line, as well as all other rendered Markdown text.
+-   **Insert Shortcuts**: Slash commands (`/today`, `/task`, `/frontmatter`) are available for quick content insertion.
 
-## 3. Core Implementation (`src/frontend/src/components/HybridEditor.tsx`)
+### Side Panel
+-   **Calendar**: A functional monthly calendar view has been added at the top of the side panel. It shows the current month and allows navigation. The current day is highlighted.
+-   **File List**: A placeholder for a future file list component is present below the calendar.
 
-The entire logic is encapsulated within the `HybridEditor.tsx` component. The core of the functionality is the `unifiedDecorationPlugin`.
+## 3. Core Implementation
 
-### `unifiedDecorationPlugin`
+### Main Layout (`App.tsx`)
+The main application layout is now a `flex` container, dividing the screen between a fixed-width side panel (`w-80`) and the main editor area (`flex-grow`).
 
-This is a CodeMirror `ViewPlugin` created via `EditorView.decorations.of()`. It is responsible for analyzing the document and applying all visual styling and replacements.
+### Hybrid Editor (`src/frontend/src/components/HybridEditor.tsx`)
+The core logic is encapsulated in the `HybridEditor.tsx` component. It uses two separate `ViewPlugin`s for different concerns.
+
+#### `unifiedDecorationPlugin`
+This plugin, created via `EditorView.decorations.of()`, handles all Markdown-related styling and replacements by parsing the syntax tree.
 
 **Key Strategies:**
+1.  **Active Line Separation**: The plugin first decorates the active line with a `cm-active-line` class (which applies a monospace font). It then explicitly skips processing any other Markdown syntax on that line to ensure the raw source is always shown.
+2.  **Block-Level Decoration (Line-by-Line)**: For block elements like `Blockquote` and `FencedCode`, the plugin iterates through each line of the block and applies a `Decoration.line` with a specific class. This is a robust method that avoids the "Ranges must be added sorted" error.
+3.  **Inline-Level Decoration (Non-Overlapping Ranges)**: For inline elements (`StrongEmphasis`, `Emphasis`, `InlineCode`, `Frontmatter`), the logic creates non-overlapping ranges by creating a `replace` decoration for the opening/closing marks and a `mark` decoration for the content *between* the marks.
+4.  **Custom Widgets (`WidgetType`)**: `WidgetType` is used to render custom elements like the `•` for unordered lists (`BulletWidget`) and the language name for code blocks (`LanguageBadgeWidget`).
 
-1.  **Unified Plugin**: All decorations, including the active line highlight and the Markdown styling, are handled in this single plugin. This prevents conflicts between different plugins trying to decorate the same parts of the document, which was the source of many "Ranges must be added sorted" errors.
+#### `iconEmojiPlugin`
+This is a second `ViewPlugin` that operates independently of the Markdown syntax tree. It uses regular expressions (`matchAll`) to find and replace `:word:` emoji codes and `(!)` / `(/)` icon shortcuts. It uses a simple `IconWidget` to render the corresponding emoji or icon character.
 
-2.  **Active Line Separation**: The plugin first decorates the active line with a `cm-active-line` class. It then explicitly skips processing any other Markdown syntax on that line. This ensures that the active line always shows the raw, undecorated source text.
-
-3.  **Block-Level Decoration (Line-by-Line)**: For block elements that can span multiple lines (like `Blockquote` and `FencedCode`), the plugin iterates through each line of the block and applies a `Decoration.line` with a specific class. This has proven to be more robust than applying a single `Decoration.mark` to the entire block, as it avoids sorting errors with child decorations.
-
-4.  **Inline-Level Decoration (Non-Overlapping Ranges)**: For inline elements (`StrongEmphasis`, `Emphasis`), the logic is carefully structured to create non-overlapping ranges. It creates:
-    -   A `Decoration.replace` for the opening and closing marks (e.g., `**`).
-    -   A `Decoration.mark` for the content *between* the marks.
-    This prevents conflicts where multiple decorations start at the same position.
-
-5.  **Custom Widgets (`WidgetType`)**: For elements that require replacing syntax with a custom rendered element, `WidgetType` is used.
-    -   `BulletWidget`: Replaces unordered list markers (`-`, `*`) with a `•` character.
-    -   `LanguageBadgeWidget`: Inserts a `<span>` containing the language name at the beginning of a fenced code block.
+### Calendar (`src/frontend/src/components/Calendar.tsx`)
+A simple, self-contained calendar component built with SolidJS and `dayjs` for date logic. It displays a monthly grid and supports navigation between months.
 
 ## 4. Styling (`src/frontend/src/components/editor-styles.css`)
 
-All custom styling for the editor is done in `editor-styles.css`. It contains `cm-` prefixed classes that correspond to the decorations applied by the plugin.
-
--   `.cm-heading-*`: Styles for H1-H6.
--   `.cm-blockquote`: Styles for blockquotes (border, background).
--   `.cm-code-block`: Styles for code blocks (background, font).
--   `.cm-language-badge`: Positions and styles the language name in the top-right corner of the code block.
--   `.cm-active-line`: Applies a monospace font to the currently active line.
+All custom styling for the editor is done in `editor-styles.css`. 
+-   The base editor font is now **"Fira Code"** to support ligatures throughout the text.
+-   `.cm-heading-*`, `.cm-blockquote`, `.cm-code-block`, etc. provide styling for the rendered Markdown.
+-   `.cm-language-badge` positions and styles the language name in the top-right corner of the code block.
+-   `.cm-active-line` applies a monospace font to the currently active line.
+-   `.cm-gutters` has a `min-width` to pre-allocate space for line numbers.
+-   `.cm-frontmatter` provides a distinct visual frame for frontmatter blocks.
+-   `.cm-task-checkbox` styles the clickable checkboxes for task list items.
 
 ## 5. Next Steps & Improvements
 
@@ -62,6 +76,7 @@ All custom styling for the editor is done in `editor-styles.css`. It contains `c
     -   Images (`![alt](url)`)
     -   Tables
     -   Horizontal Rules (`---`)
--   **Refine Parsing**: The logic for finding child nodes (e.g., `firstChild`, `nextSibling`) can be brittle if the Markdown grammar changes. A more robust method would be to use the `cursor()` method on a `SyntaxNode` to iterate its children.
--   **Styling Polish**: The current styling is functional but could be refined for a better aesthetic.
--   **Continue `IDEA.md`**: This editor is the first step. The next phases from `IDEA.md` (file storage, calendar view, etc.) can now be built on top of this functional editor component.
+-   **File List**: Implement the file list functionality in the `FileList.tsx` component.
+-   **Calendar Interaction**: Add logic to the calendar to show or filter notes based on the selected date.
+-   **Plugin Performance**: The regex-based `iconEmojiPlugin` could be slow on large files. It could be optimized or integrated into the main syntax tree parser for better performance.
+-   **Continue `IDEA.md`**: This editor is a solid foundation. The next phases from `IDEA.md` (file storage, query engine, etc.) can now be built out.

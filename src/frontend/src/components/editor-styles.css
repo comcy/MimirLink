@@ -1,73 +1,161 @@
+/* CodeMirror Editor Base Styles */
+.cm-editor {
+  height: 100%;
+  font-family: "Fira Code", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-variant-ligatures: common-ligatures;
+}
+
+/* CodeMirror Gutters (Line Numbers) */
+.cm-gutters {
+  min-width: 3.5em;
+  /* Pre-allocate space for line numbers */
+}
+
 .cm-heading-1 {
   font-size: 2.5rem;
   font-weight: 600;
-  border-bottom: 1px solid #ddd;
   padding-bottom: 0.5rem;
   margin-top: 1rem;
+  font-variant-ligatures: common-ligatures;
 }
+
 .cm-heading-2 {
   font-size: 2rem;
   font-weight: 600;
-  border-bottom: 1px solid #eee;
   padding-bottom: 0.4rem;
   margin-top: 0.8rem;
+  font-variant-ligatures: common-ligatures;
 }
+
 .cm-heading-3 {
   font-size: 1.75rem;
   font-weight: 600;
+  font-variant-ligatures: common-ligatures;
 }
+
 .cm-heading-4 {
   font-size: 1.5rem;
   font-weight: 600;
+  font-variant-ligatures: common-ligatures;
 }
+
 .cm-heading-5 {
   font-size: 1.25rem;
   font-weight: 600;
+  font-variant-ligatures: common-ligatures;
 }
+
 .cm-heading-6 {
   font-size: 1rem;
   font-weight: 600;
+  font-variant-ligatures: common-ligatures;
 }
 
 .cm-emphasis {
   font-style: italic;
+  font-variant-ligatures: common-ligatures;
 }
 
 .cm-strong-emphasis {
   font-weight: bold;
+  font-variant-ligatures: common-ligatures;
 }
 
 .cm-bullet {
   color: #888;
   margin-right: 0.5em;
+  font-variant-ligatures: common-ligatures;
 }
 
 .cm-blockquote {
-  border-left: 4px solid #007bff;
-  padding-left: 1em;
-  background-color: #e6f2ff;
-  color: #333;
+  border-left: 3px solid #007bff;
+  background-color: #f0f7ff;
+  color: #444;
+  margin-left: 8px;
+  margin-right: 8px;
+  font-variant-ligatures: common-ligatures;
 }
 
+/* Code Block Styling */
 .cm-code-block {
   background-color: #f6f8fa;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.9em;
+  padding-left: 1em;
+  margin-left: 8px;
+  margin-right: 8px;
+  border-left: solid 1px #444;
+  border-right: solid 1px #444;
+  font-variant-ligatures: common-ligatures;
+}
+
+.cm-code-block-first-line {
   position: relative;
+  padding-top: 1.5em;
 }
 
 .cm-language-badge {
   position: absolute;
   top: 0;
   right: 0.5em;
-  background-color: #f6f8fa;
+  background-color: #fff;
   color: #666;
   font-size: 0.7em;
-  font-style: italic;
+  font-style: bold italic;
   padding: 0.1em 0.5em;
-  border-radius: 4px;
+  border-radius: 0 0 4px 4px;
   z-index: 1;
 }
 
 .cm-active-line {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-variant-ligatures: common-ligatures;
+}
+
+
+
+.cm-inline-code {
+  background-color: #f0f0f0;
+
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-variant-ligatures: common-ligatures;
+}
+
+.cm-task-checkbox {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.cm-frontmatter {
+  display: block;
+  position: relative;
+  background-color: rgba(255, 0, 255, 0.05);
+}
+
+.cm-frontmatter-first-line {
+  position: relative;
+  /* To position the badge */
+}
+
+.cm-frontmatter-first-line::before {
+  content: attr(data-frontmatter-badge);
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  background-color: #ff00ff;
+  color: white;
+  font-size: 0.7em;
+  font-style: italic;
+  padding: 0.1em 0.5em;
+  border-radius: 0 0 4px 4px;
+  z-index: 1;
+}
+
+.cm-mark-hidden {
+  display: none;
 }
