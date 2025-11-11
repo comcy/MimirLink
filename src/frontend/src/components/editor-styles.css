@@ -1,6 +1,9 @@
+.cm-editor, .cm-scroller {
+  height: 100%;
+}
+
 /* CodeMirror Editor Base Styles */
 .cm-editor {
-  height: 100%;
   font-family: "Fira Code", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   font-variant-ligatures: common-ligatures;
 }
@@ -10,6 +13,12 @@
   min-width: 3.5em;
   background-color: #f3f4f6; /* Tailwind's gray-100 */
   /* Pre-allocate space for line numbers */
+}
+
+@media (max-width: 768px) {
+  .cm-gutters {
+    min-width: 2.5em;
+  }
 }
 
 .cm-heading-1 {

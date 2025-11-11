@@ -1,4 +1,5 @@
 import { createSignal, onMount, For, Show } from 'solid-js';
+import styles from './FileList.module.scss';
 
 interface FileMetadata {
   path: string;
@@ -23,26 +24,38 @@ function FileSection(props: { title: string; files: FileMetadata[] }) {
   return (
     <div>
       <h3
-        class="text-md font-semibold mb-1 cursor-pointer flex items-center"
+        class={styles.fileSectionTitle}
+        classList={{ [styles.expanded]: isExpanded() }}
         onClick={() => setExpanded(!isExpanded())}
       >
-        <span class="transform transition-transform" classList={{ 'rotate-90': isExpanded() }}>
-          &#9656;
-        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="lucide lucide-chevron-right"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
         <span class="ml-2">{props.title}</span>
       </h3>
       <Show when={isExpanded()}>
-        <ul class="text-sm pl-4">
+        <ul class={styles.fileSectionList}>
           <For each={visibleFiles()}>
             {(file) => (
-              <li class="py-1 px-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded cursor-pointer truncate">
+              <li class={styles.fileListItem}>
                 {file.path}
               </li>
             )}
           </For>
           {props.files.length > INITIAL_VISIBLE_FILES && !showAll() && (
             <li
-              class="py-1 px-2 text-gray-500 cursor-pointer"
+              class={`${styles.fileListItem} ${styles.more}`}
               onClick={() => setShowAll(true)}
             >
               ... more
@@ -75,15 +88,15 @@ export function FileList() {
   });
 
   return (
-    <div class="p-4 border-t" style={{ "border-color": "var(--border-color)" }}>
-      <h2 class="text-lg font-semibold mb-2">Files</h2>
-      {loading() && <div class="text-sm text-gray-500">Loading files...</div>}
-      {error() && <div class="text-sm text-red-500">Error: {error()}</div>}
+    <div class={`${styles.fileListContainer} ${styles.spaceY4}`}>
+      <h2 class={styles.fileListTitle}>Files</h2>
+      {loading() && <div class={styles.loading}>Loading files...</div>}
+      {error() && <div class={styles.error}>Error: {error()}</div>}
       {!loading() && !error() && (
-        <div class="space-y-4">
+        <>
           <FileSection title="Journals" files={files().journals} />
           <FileSection title="Pages" files={files().pages} />
-        </div>
+        </>
       )}
     </div>
   );

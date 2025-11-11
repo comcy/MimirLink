@@ -37,6 +37,8 @@ export interface Test { }
 
 `;
 
+import styles from './App.module.scss';
+
 function App() {
   const [markdown, setMarkdown] = createSignal(initialMarkdown);
   const { theme } = useTheme();
@@ -66,24 +68,15 @@ function App() {
   };
 
   return (
-    <main style={{ display: 'flex', height: '100vh', "background-color": "var(--bg-color)", color: "var(--text-color)" }}>
+    <main class={styles.main}>
       <IconSidebar onFileIconClick={toggleSidebar} />
-      <div
-        style={{
-          "border-right": "1px solid var(--border-color)",
-          display: 'flex',
-          "flex-direction": 'column',
-          width: isSidebarOpen() ? '20rem' : '0',
-          overflow: 'hidden',
-          transition: 'width 0.2s ease-in-out',
-        }}
-      >
+      <div class={styles.sidebarContainer} classList={{ [styles.closed]: !isSidebarOpen() }}>
         <Calendar />
         <FileList />
       </div>
-      <div style={{ display: 'flex', "flex-direction": 'column', "flex-grow": 1, "overflow-y": "hidden" }}>
+      <div class={styles.contentContainer}>
         <MenuBar />
-        <div style={{ "flex-grow": 1, "overflow-y": "auto", height: '100%', position: 'relative' }}>
+        <div class={styles.editorWrapper}>
           <HybridEditor value={markdown} setValue={setMarkdown} onShowDatePicker={showDatePicker} />
           <Show when={isDatePickerVisible()}>
             <DatePicker

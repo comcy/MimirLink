@@ -34,14 +34,17 @@ export function IconSidebar(props: IconSidebarProps) {
       </div>
 
       {/* Theme Toggle Button */}
-      <button onClick={toggleTheme} class={styles.iconButton}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" fill="white" stroke="currentColor" stroke-width="2" />
-          {theme() === 'light' ? (
-            <path d="M12 2A10 10 0 0012 22Z" fill={theme() === 'light' ? 'black' : 'white'} />
-          ) : (
-            <path d="M12 2A10 10 0 0112 22Z" fill="black" />
-          )}
+      <button onClick={toggleTheme} class={`${styles.iconButton} ${styles.themeSwitcherButton}`}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path
+            d="M12 2A10 10 0 0012 22Z"
+            class={theme() === 'light' ? styles.leftSemicircleLight : styles.leftSemicircleDark}
+          />
+          <path
+            d="M12 2A10 10 0 0112 22Z"
+            class={theme() === 'light' ? styles.rightSemicircleLight : styles.rightSemicircleDark}
+          />
         </svg>
       </button>
     </div>

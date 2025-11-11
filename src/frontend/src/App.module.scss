@@ -1,2 +1,36 @@
-/* No specific styles needed for the App component itself, 
-   as the layout is handled by inline styles. */
+.main {
+  display: flex;
+  height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  overflow: hidden; /* Prevents the whole page from scrolling */
+}
+
+.sidebarContainer {
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: clamp(280px, 22%, 350px);
+  overflow: hidden;
+  padding-inline: 1rem; /* Default padding */
+}
+
+.sidebarContainer.closed {
+  width: 0;
+  padding-inline: 0; /* Remove padding when closed */
+  border-right-color: transparent;
+}
+
+.contentContainer {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0; /* Important for flex-grow items to prevent overflow */
+}
+
+.editorWrapper {
+  flex-grow: 1;
+  position: relative;
+  overflow-y: auto; /* This is the key: only this container will scroll */
+}
