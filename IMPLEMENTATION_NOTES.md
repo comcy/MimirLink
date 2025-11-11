@@ -8,7 +8,12 @@ The primary goal is to create a feature-rich, hybrid WYSIWYG (What You See Is Wh
 
 ## 2. Current Status
 
-The application now features a two-panel layout: a left-side menu and a main editor area.
+The application now features a top menu bar, a left-side panel, and a main editor area.
+
+### UI & Theming
+-   **Theme Switcher**: A theme switcher has been added to the top menu bar, allowing users to toggle between light and dark modes.
+-   **Dark Mode Styling**: Custom styles have been implemented for dark mode, including adjustments for CodeMirror elements like line numbers, frontmatter, code blocks, and blockquotes to ensure readability.
+-   **Icon Button**: The theme switcher is an icon button that visually represents the current theme state.
 
 ### Editor Features
 The editor is functional and provides a hybrid preview for the following Markdown elements:
@@ -21,15 +26,17 @@ The editor is functional and provides a hybrid preview for the following Markdow
 -   **Unordered Lists** (`-`, `*`, `+`)
 -   **Ordered Lists** (e.g., `1.`)
 -   **Fenced Code Blocks** (```` ``` ````) with language badge and syntax highlighting.
--   **Emoji & Icons**: Renders `:word:` style emoji and Confluence-style icons like `(!)` and `(/)`.
--   **Frontmatter**: YAML frontmatter blocks are now correctly parsed and displayed with a distinct visual frame.
+-   **Emoji & Icons**: Renders `:word:` style emoji and Confluence-style icons like `(!)`, `(/)`, `(x)`, and `(?)`.
+-   **Frontmatter**: YAML frontmatter blocks are now correctly parsed and displayed with a distinct visual frame and a comic-style font ("Bangers").
 -   **Task Checkboxes**: Markdown task list items (`- [ ] `) are rendered as clickable checkboxes.
 
 **General editor enhancements include:**
 -   **Line Numbers**: Displayed in the gutter.
 -   **Full Viewport Height**: The editor and side panel fill the entire screen.
 -   **Code Ligatures**: Enabled for "Fira Code" font in code blocks and the active line, as well as all other rendered Markdown text.
--   **Insert Shortcuts**: Slash commands (`/today`, `/task`, `/frontmatter`) are available for quick content insertion.
+-   **Insert Shortcuts**: 
+    -   Slash commands (`/today`, `/task`, `/frontmatter`) are available for quick content insertion.
+    -   A `//` shortcut opens a date picker, allowing users to select a date to be inserted in `[[YYYY-MM-DD]]` format.
 
 ### Side Panel
 -   **Calendar**: A functional monthly calendar view has been added at the top of the side panel. It shows the current month and allows navigation. The current day is highlighted.
@@ -38,10 +45,13 @@ The editor is functional and provides a hybrid preview for the following Markdow
 ## 3. Core Implementation
 
 ### Main Layout (`App.tsx`)
-The main application layout is now a `flex` container, dividing the screen between a fixed-width side panel (`w-80`) and the main editor area (`flex-grow`).
+The main application layout is a `flex` container with a top menu bar and a main content area that is split between a fixed-width side panel and the editor.
+
+### Theming (`ThemeContext.tsx`)
+A `ThemeContext` provides the theme state (light/dark) and a toggle function to all components. The `App` component uses `createEffect` to apply the current theme class to the `body` element.
 
 ### Hybrid Editor (`src/frontend/src/components/HybridEditor.tsx`)
-The core logic is encapsulated in the `HybridEditor.tsx` component. It uses two separate `ViewPlugin`s for different concerns.
+The core logic is encapsulated in the `HybridEditor.tsx` component. It uses several `ViewPlugin`s for different concerns.
 
 #### `unifiedDecorationPlugin`
 This plugin, created via `EditorView.decorations.of()`, handles all Markdown-related styling and replacements by parsing the syntax tree.
@@ -53,21 +63,22 @@ This plugin, created via `EditorView.decorations.of()`, handles all Markdown-rel
 4.  **Custom Widgets (`WidgetType`)**: `WidgetType` is used to render custom elements like the `•` for unordered lists (`BulletWidget`) and the language name for code blocks (`LanguageBadgeWidget`).
 
 #### `iconEmojiPlugin`
-This is a second `ViewPlugin` that operates independently of the Markdown syntax tree. It uses regular expressions (`matchAll`) to find and replace `:word:` emoji codes and `(!)` / `(/)` icon shortcuts. It uses a simple `IconWidget` to render the corresponding emoji or icon character.
+This is a second `ViewPlugin` that operates independently of the Markdown syntax tree. It uses regular expressions (`matchAll`) to find and replace `:word:` emoji codes and `(!)` / `(/)` / `(x)` / `(?)` icon shortcuts. It uses a simple `IconWidget` to render the corresponding emoji or icon character.
 
-### Calendar (`src/frontend/src/components/Calendar.tsx`)
-A simple, self-contained calendar component built with SolidJS and `dayjs` for date logic. It displays a monthly grid and supports navigation between months.
+#### `datePickerPlugin`
+This plugin listens for document changes. When it detects that `//` has been typed, it calls the `onShowDatePicker` prop with the cursor's coordinates and a callback function. This decouples the editor from the UI of the date picker itself.
 
-## 4. Styling (`src/frontend/src/components/editor-styles.css`)
+### Date Picker (`DatePicker.tsx` & `App.tsx`)
+-   **`DatePicker.tsx`**: A floating calendar component that takes a position and `onSelect`/`onClose` callbacks as props.
+-   **`App.tsx`**: Manages the state (visibility, position, callback) of the date picker. It conditionally renders the `DatePicker` and passes the necessary props to it and the `HybridEditor`.
 
-All custom styling for the editor is done in `editor-styles.css`. 
--   The base editor font is now **"Fira Code"** to support ligatures throughout the text.
--   `.cm-heading-*`, `.cm-blockquote`, `.cm-code-block`, etc. provide styling for the rendered Markdown.
--   `.cm-language-badge` positions and styles the language name in the top-right corner of the code block.
--   `.cm-active-line` applies a monospace font to the currently active line.
--   `.cm-gutters` has a `min-width` to pre-allocate space for line numbers.
--   `.cm-frontmatter` provides a distinct visual frame for frontmatter blocks.
--   `.cm-task-checkbox` styles the clickable checkboxes for task list items.
+## 4. Styling (`src/frontend/src/components/editor-styles.css` & `index.css`)
+
+-   **`index.css`**: Contains the base CSS variables for light and dark themes (e.g., `--bg-color`, `--text-color`).
+-   **`editor-styles.css`**: All custom styling for the editor is done here.
+    -   The base editor font is now **"Fira Code"** to support ligatures throughout the text.
+    -   `.cm-frontmatter` uses the "Bangers" font for a comic-style look.
+    -   Dark theme styles are implemented using the `.dark` parent class (e.g., `.dark .cm-gutters`).
 
 ## 5. Next Steps & Improvements
 

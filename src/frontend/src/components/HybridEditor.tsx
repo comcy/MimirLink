@@ -1,16 +1,21 @@
-import { onMount, onCleanup } from "solid-js";
-import type { Accessor, Setter } from "solid-js";
-import "./editor-styles.css";
-import { EditorState } from "@codemirror/state";
-import { EditorView, Decoration, WidgetType, lineNumbers } from "@codemirror/view";
-import type { DecorationSet, ViewUpdate, Range } from "@codemirror/view";
+import type { Completion, CompletionResult } from "@codemirror/autocomplete";
+import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
-import { syntaxTree, syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
-import type { Completion, CompletionResult } from "@codemirror/autocomplete";
+import { EditorState, Range } from "@codemirror/state";
+import { Decoration, EditorView, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
 import dayjs from "dayjs";
+import { onCleanup, onMount } from "solid-js";
+import type { Accessor, Setter } from "solid-js";
+import "./editor-styles.css";
+
+interface HybridEditorProps {
+  value: Accessor<string>;
+  setValue: Setter<string>;
+  onShowDatePicker: (pos: { top: number, left: number }, callback: (date: string) => void) => void;
+}
 
 const emojiMap: { [key: string]: string } = {
   smile: '😄',
@@ -20,6 +25,8 @@ const emojiMap: { [key: string]: string } = {
   tada: '🎉',
   warning: '⚠️',
   check: '✅',
+  cross: '❌',
+  question: '❓',
 };
 
 // --- Widgets ---
@@ -34,8 +41,10 @@ class BulletWidget extends WidgetType {
 }
 
 class LanguageBadgeWidget extends WidgetType {
-  constructor(readonly language: string) {
+  readonly language: string;
+  constructor(language: string) {
     super();
+    this.language = language;
   }
   toDOM() {
     const span = document.createElement("span");
@@ -46,8 +55,12 @@ class LanguageBadgeWidget extends WidgetType {
 }
 
 class CheckboxWidget extends WidgetType {
-  constructor(readonly checked: boolean, readonly pos: number) {
+  readonly checked: boolean;
+  readonly pos: number;
+  constructor(checked: boolean, pos: number) {
     super();
+    this.checked = checked;
+    this.pos = pos;
   }
 
   toDOM(view: EditorView) {
@@ -67,8 +80,10 @@ class CheckboxWidget extends WidgetType {
 }
 
 class IconWidget extends WidgetType {
-  constructor(readonly text: string) {
+  readonly text: string;
+  constructor(text: string) {
     super();
+    this.text = text;
   }
   toDOM() {
     const span = document.createElement("span");
@@ -111,7 +126,7 @@ function unifiedDecorationPlugin() {
 
           if (node.name === "FencedCode") {
             let isFirstLine = true;
-            for (let pos = node.from; pos <= node.to; ) {
+            for (let pos = node.from; pos <= node.to;) {
               const line = view.state.doc.lineAt(pos);
               const lineClass = isFirstLine ? "cm-code-block cm-code-block-first-line" : "cm-code-block";
               builder.push(Decoration.line({ attributes: { class: lineClass } }).range(line.from));
@@ -123,7 +138,7 @@ function unifiedDecorationPlugin() {
             const lastMark = node.node.lastChild;
             if (firstMark && firstMark.name === "CodeMark" && isSameLine(firstMark.from, firstMark.to)) {
               builder.push(Decoration.replace({}).range(firstMark.from, firstMark.to));
-              
+
               const infoNode = firstMark.nextSibling;
               if (infoNode && infoNode.name === "CodeInfo" && isSameLine(infoNode.from, infoNode.to)) {
                 const language = view.state.doc.sliceString(infoNode.from, infoNode.to);
@@ -139,10 +154,10 @@ function unifiedDecorationPlugin() {
           }
 
           if (node.name === "Blockquote") {
-            for (let pos = node.from; pos <= node.to; ) {
+            for (let pos = node.from; pos <= node.to;) {
               const line = view.state.doc.lineAt(pos);
               builder.push(Decoration.line({ attributes: { class: "cm-blockquote" } }).range(line.from));
-              
+
               syntaxTree(view.state).iterate({
                 from: line.from,
                 to: line.to,
@@ -152,7 +167,7 @@ function unifiedDecorationPlugin() {
                   }
                 }
               });
-              
+
               pos = line.to + 1;
             }
             return false;
@@ -164,11 +179,11 @@ function unifiedDecorationPlugin() {
             if (firstMark && firstMark.name === "DashLine" && lastMark && lastMark.name === "DashLine") {
               // Apply badge to the first dash line
               const firstLine = view.state.doc.lineAt(firstMark.from);
-              builder.push(Decoration.line({ 
-                attributes: { 
+              builder.push(Decoration.line({
+                attributes: {
                   class: "cm-frontmatter-first-line",
-                  "data-frontmatter-badge": "frontmatter" 
-                } 
+                  "data-frontmatter-badge": "frontmatter"
+                }
               }).range(firstLine.from));
 
               // Apply style to the entire block
@@ -212,11 +227,11 @@ function unifiedDecorationPlugin() {
             }
             return false;
           }
-          
+
           if (node.name === "ListItem") {
             let hasTaskChild = false;
             let child = node.node.firstChild;
-            while(child) {
+            while (child) {
               if (child.name === "Task") {
                 hasTaskChild = true;
                 break;
@@ -224,22 +239,22 @@ function unifiedDecorationPlugin() {
               child = child.nextSibling;
             }
 
-              const mark = node.node.firstChild;
-              if (mark && mark.name === "ListMark" && isSameLine(mark.from, mark.to)) {
-                if (hasTaskChild) {
-                  builder.push(Decoration.replace({}).range(mark.from, mark.to));
-                } else {
-                  const markText = view.state.doc.sliceString(mark.from, mark.to);
-                  if (markText === "-" || markText === "*" || markText === "+") {
-                    builder.push(Decoration.replace({ widget: new BulletWidget() }).range(mark.from, mark.to));
-                  }
+            const mark = node.node.firstChild;
+            if (mark && mark.name === "ListMark" && isSameLine(mark.from, mark.to)) {
+              if (hasTaskChild) {
+                builder.push(Decoration.replace({}).range(mark.from, mark.to));
+              } else {
+                const markText = view.state.doc.sliceString(mark.from, mark.to);
+                if (markText === "-" || markText === "*" || markText === "+") {
+                  builder.push(Decoration.replace({ widget: new BulletWidget() }).range(mark.from, mark.to));
                 }
-              }          
+              }
+            }
           }
         },
       });
     }
-    
+
     try {
       return Decoration.set(builder.sort((a, b) => a.from - b.from));
     } catch (e) {
@@ -256,13 +271,13 @@ function iconEmojiPlugin() {
 
     for (const { from, to } of view.visibleRanges) {
       const text = view.state.doc.sliceString(from, to);
-      
+
       for (const match of text.matchAll(/:([a-z_]+):/g)) {
         const start = from + match.index!;
         const end = start + match[0].length;
         const word = match[1];
         if (view.state.doc.lineAt(start).number !== view.state.doc.lineAt(end).number) continue;
-        
+
         if (cursor >= start && cursor <= end) continue;
 
         if (emojiMap[word]) {
@@ -272,7 +287,7 @@ function iconEmojiPlugin() {
         }
       }
 
-      for (const match of text.matchAll(/(\(!\)|\(\/\))/g)) {
+      for (const match of text.matchAll(/(\(!\)|\(\/\)|\(x\)|\(\?\))/g)) {
         const start = from + match.index!;
         const end = start + match[0].length;
         const iconText = match[1];
@@ -288,10 +303,18 @@ function iconEmojiPlugin() {
           builder.push(Decoration.replace({
             widget: new IconWidget(emojiMap['check']),
           }).range(start, end));
+        } else if (iconText === '(x)') {
+          builder.push(Decoration.replace({
+            widget: new IconWidget(emojiMap['cross']),
+          }).range(start, end));
+        } else if (iconText === '(?)') {
+          builder.push(Decoration.replace({
+            widget: new IconWidget(emojiMap['question']),
+          }).range(start, end));
         }
       }
     }
-    
+
     return Decoration.set(builder.sort((a, b) => a.from - b.from));
   });
 }
@@ -303,7 +326,7 @@ const slashCommands = (context: CompletionContext): CompletionResult | null => {
   const options: Completion[] = [
     {
       label: "/today",
-      apply: (view, completion, from, to) => {
+      apply: (view, _completion, from, to) => {
         const today = dayjs().format('YYYY-MM-DD');
         view.dispatch({
           changes: { from, to, insert: `[[${today}]]` }
@@ -314,7 +337,7 @@ const slashCommands = (context: CompletionContext): CompletionResult | null => {
     },
     {
       label: "/task",
-      apply: (view, completion, from, to) => {
+      apply: (view, _completion, from, to) => {
         view.dispatch({
           changes: { from, to, insert: "- [ ] " }
         });
@@ -324,7 +347,7 @@ const slashCommands = (context: CompletionContext): CompletionResult | null => {
     },
     {
       label: "/frontmatter",
-      apply: (view, completion, from, to) => {
+      apply: (view, _completion, from, to) => {
         const frontmatter = `---
 title: 
 date: ${dayjs().format('YYYY-MM-DD')}
@@ -347,6 +370,28 @@ tags:
   };
 };
 
+function datePickerPlugin(onShowDatePicker: (pos: { top: number, left: number }, callback: (date: string) => void) => void) {
+  return EditorView.updateListener.of((update: ViewUpdate) => {
+    if (!update.docChanged) return;
+
+    const { state, dispatch } = update.view;
+    const cursor = state.selection.main.head;
+    const textBefore = state.doc.sliceString(Math.max(0, cursor - 2), cursor);
+
+    if (textBefore === '//') {
+      const coords = update.view.coordsAtPos(cursor);
+      if (coords) {
+        const callback = (date: string) => {
+          dispatch({
+            changes: { from: cursor - 2, to: cursor, insert: date }
+          });
+        };
+        onShowDatePicker({ top: coords.bottom, left: coords.left }, callback);
+      }
+    }
+  });
+}
+
 // --- Main Component ---
 
 export function HybridEditor(props: HybridEditorProps) {
@@ -365,8 +410,8 @@ export function HybridEditor(props: HybridEditorProps) {
         doc: props.value(),
         extensions: [
           yamlFrontmatter({
-            content: markdown({ 
-              base: markdownLanguage, 
+            content: markdown({
+              base: markdownLanguage,
               codeLanguages: languages,
             })
           }),
@@ -377,6 +422,7 @@ export function HybridEditor(props: HybridEditorProps) {
           unifiedDecorationPlugin(),
           iconEmojiPlugin(),
           autocompletion({ override: [slashCommands] }),
+          datePickerPlugin(props.onShowDatePicker),
         ],
       });
 

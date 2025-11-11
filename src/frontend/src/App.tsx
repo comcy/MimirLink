@@ -1,9 +1,20 @@
-import { createSignal } from 'solid-js';
-import { HybridEditor } from './components/HybridEditor';
-import { Calendar } from './components/Calendar';
-import { FileList } from './components/FileList';
 
-const initialMarkdown = `# Welcome to your new editor!
+import { createEffect, createSignal, Show } from 'solid-js';
+import { Calendar } from './components/Calendar';
+import { DatePicker } from './components/DatePicker';
+import { FileList } from './components/FileList';
+import { HybridEditor } from './components/HybridEditor';
+import { IconSidebar } from './components/IconSidebar';
+import { MenuBar } from './components/MenuBar';
+import { useTheme } from './components/ThemeContext';
+
+const initialMarkdown = `---
+title: 
+date: 2025-11-09
+tags: 
+---
+
+# Welcome to your new editor!
 
 This is a hybrid preview editor.
 - Start typing markdown.
@@ -28,19 +39,59 @@ export interface Test { }
 
 function App() {
   const [markdown, setMarkdown] = createSignal(initialMarkdown);
+  const { theme } = useTheme();
+
+  const [isDatePickerVisible, setDatePickerVisible] = createSignal(false);
+  const [datePickerPosition, setDatePickerPosition] = createSignal({ top: 0, left: 0 });
+  const [datePickerCallback, setDatePickerCallback] = createSignal<(date: string) => void>(() => {});
+  const [isSidebarOpen, setSidebarOpen] = createSignal(true);
+
+  createEffect(() => {
+    document.body.className = theme();
+  });
+
+  const showDatePicker = (pos: { top: number, left: number }, callback: (date: string) => void) => {
+    setDatePickerPosition(pos);
+    setDatePickerCallback(() => callback);
+    setDatePickerVisible(true);
+  };
+
+  const onDateSelect = (date: string) => {
+    datePickerCallback()(date);
+    setDatePickerVisible(false);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!isSidebarOpen());
+  };
 
   return (
-    <main class="h-screen w-screen bg-white text-gray-900 flex">
-      <div class="w-80 border-r border-gray-200 flex flex-col">
+    <main class="h-screen w-screen flex" style={{ "background-color": "var(--bg-color)", color: "var(--text-color)" }}>
+      <IconSidebar onFileIconClick={toggleSidebar} />
+      <div
+        class="border-r flex flex-col"
+        classList={{ 'w-80': isSidebarOpen(), 'w-0 overflow-hidden': !isSidebarOpen() }}
+      >
         <Calendar />
         <FileList />
       </div>
-      <div class="flex-grow h-full">
-        <HybridEditor value={markdown} setValue={setMarkdown} />
+      <div class="flex flex-col flex-grow">
+        <MenuBar />
+        <div class="flex-grow h-full relative">
+          <HybridEditor value={markdown} setValue={setMarkdown} onShowDatePicker={showDatePicker} />
+          <Show when={isDatePickerVisible()}>
+            <DatePicker
+              position={datePickerPosition()}
+              onSelect={onDateSelect}
+              onClose={() => setDatePickerVisible(false)}
+            />
+          </Show>
+        </div>
       </div>
     </main>
   );
 }
 
 export default App;
+
 

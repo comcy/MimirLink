@@ -8,6 +8,7 @@
 /* CodeMirror Gutters (Line Numbers) */
 .cm-gutters {
   min-width: 3.5em;
+  background-color: #f3f4f6; /* Tailwind's gray-100 */
   /* Pre-allocate space for line numbers */
 }
 
@@ -84,8 +85,8 @@
   padding-left: 1em;
   margin-left: 8px;
   margin-right: 8px;
-  border-left: solid 1px #444;
-  border-right: solid 1px #444;
+  border-left: solid 3px #444;
+  border-right: solid 3px #444;
   font-variant-ligatures: common-ligatures;
 }
 
@@ -111,8 +112,6 @@
   font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
   font-variant-ligatures: common-ligatures;
 }
-
-
 
 .cm-inline-code {
   background-color: #f0f0f0;
@@ -158,4 +157,37 @@
 
 .cm-mark-hidden {
   display: none;
+}
+
+/* Dark Theme Styles */
+.dark .cm-gutters {
+  background-color: #1a202c;
+  color: #a0aec0;
+  border-right: 1px solid #4a5568;
+}
+
+.dark .cm-frontmatter {
+  background-color: #923589;
+  /* A slightly lighter dark background */
+  color: #e2e8f0;
+  /* A lighter text color for better contrast */
+}
+
+.dark .cm-code-block {
+  background-color: #c2c2c2;
+  /* Even lighter gray for code blocks */
+  border-left: solid 3px #4a5568;
+  border-right: solid 3px #4a5568;
+}
+
+.dark .cm-blockquote {
+  border-left: 3px solid #63b3ed;
+  /* Lighter blue border */
+  background-color: #001930;
+  /* Lighter blue background */
+  color: #e2e8f0;
+}
+
+.dark .cm-inline-code {
+  background-color: #2d3748;
 }
