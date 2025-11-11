@@ -66,18 +66,24 @@ function App() {
   };
 
   return (
-    <main class="h-screen w-screen flex" style={{ "background-color": "var(--bg-color)", color: "var(--text-color)" }}>
+    <main style={{ display: 'flex', height: '100vh', "background-color": "var(--bg-color)", color: "var(--text-color)" }}>
       <IconSidebar onFileIconClick={toggleSidebar} />
       <div
-        class="border-r flex flex-col"
-        classList={{ 'w-80': isSidebarOpen(), 'w-0 overflow-hidden': !isSidebarOpen() }}
+        style={{
+          "border-right": "1px solid var(--border-color)",
+          display: 'flex',
+          "flex-direction": 'column',
+          width: isSidebarOpen() ? '20rem' : '0',
+          overflow: 'hidden',
+          transition: 'width 0.2s ease-in-out',
+        }}
       >
         <Calendar />
         <FileList />
       </div>
-      <div class="flex flex-col flex-grow">
+      <div style={{ display: 'flex', "flex-direction": 'column', "flex-grow": 1, "overflow-y": "hidden" }}>
         <MenuBar />
-        <div class="flex-grow h-full relative">
+        <div style={{ "flex-grow": 1, "overflow-y": "auto", height: '100%', position: 'relative' }}>
           <HybridEditor value={markdown} setValue={setMarkdown} onShowDatePicker={showDatePicker} />
           <Show when={isDatePickerVisible()}>
             <DatePicker
