@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { createSignal, For } from 'solid-js';
+import styles from './Calendar.module.scss';
 
 export function Calendar() {
   const [currentDate, setCurrentDate] = createSignal(dayjs());
@@ -22,21 +23,25 @@ export function Calendar() {
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div class="p-4 text-sm">
-      <div class="flex justify-between items-center mb-2">
+    <div class={styles.calendar}>
+      <div class={styles.header}>
         <button onClick={() => setCurrentDate(currentDate().subtract(1, 'month'))}>&lt;</button>
-        <h2 class="text-lg font-semibold">{currentDate().format('MMMM YYYY')}</h2>
+        <h2>{currentDate().format('MMMM YYYY')}</h2>
         <button onClick={() => setCurrentDate(currentDate().add(1, 'month'))}>&gt;</button>
       </div>
-      <div class="grid grid-cols-7 gap-2 text-center text-sm">
-        <For each={weekDays}>{(day) => <div class="font-semibold">{day}</div>}</For>
+      <div class={styles.weekDays}>
+        <For each={weekDays}>{(day) => <div>{day}</div>}</For>
+      </div>
+      <div class={styles.days}>
         <For each={daysInMonth()}>
           {(day) => (
-            <div class="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800 cursor-pointer"
-                 classList={{
-                   'bg-blue-500 text-white': day === dayjs().date() && currentDate().month() === dayjs().month() && currentDate().year() === dayjs().year(),
-                   'opacity-50': day === null
-                 }}>
+            <div
+              class={styles.day}
+              classList={{
+                [styles.today]: day === dayjs().date() && currentDate().month() === dayjs().month() && currentDate().year() === dayjs().year(),
+                [styles.empty]: day === null
+              }}
+            >
               {day}
             </div>
           )}
