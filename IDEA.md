@@ -1,131 +1,74 @@
-# 🧭 Implementierungsplan: Markdown-basierte Notiz- & To-Do-App (SilverBullet-ähnlich)
+# 🧭 Mimirlink: Architektur- und Implementierungsplan
 
-## 🧰 Tech-Stack
+Dieses Dokument beschreibt die geplante Architektur und die Implementierungsschritte für Mimirlink, eine offline-fähige, geräteübergreifende Markdown-Notiz-App.
 
-| Bereich | Tool / Technik | Begründung |
-|----------|----------------|------------|
-| UI / Frontend | **SolidJS** + **Vite** + **TailwindCSS** | performant, minimal, reactive |
-| Editor | **CodeMirror 6** + Markdown Plugin | flexible Markdown-Syntax, erweiterbar |
-| Markdown Rendering | **marked** oder **markdown-it** | schnelles, anpassbares HTML-Rendering |
-| Styling | **Tailwind** + optional **ShadCN UI** | modernes, schnelles UI-Design |
-| Kalender | **Day.js** + Solid-Kalenderkomponente | simple Datumslogik, kein Overhead |
-| Storage | **IndexedDB / FileSystem API** | offline-fähig, persistente Speicherung |
-| Git-Sync (später) | **isomorphic-git** | läuft im Browser & Node |
-| Parser | **gray-matter** | YAML Frontmatter aus Markdown extrahieren |
-| Query Engine (später) | **Lua (via wasm)** oder kleine JS DSL | flexible eingebettete Queries |
-| Build & Dev | **Vite** + **ESM** | ultraschneller Build-Prozess |
+## 🏛️ Kernarchitektur: Hybrides Modell
 
----
+Wir verfolgen einen hybriden Ansatz, der die Vorteile einer robusten Server-Architektur mit der Flexibilität einer modernen Offline-Frontend-Anwendung kombiniert.
 
-## 🧱 Projektstruktur
+### 1. Backend: Self-Hosted Node.js Sync-Server
+- **Zweck:** Dient als zentraler **Synchronisierungs-Hub** und die einzige "Source of Truth" für alle Notizen.
+- **Hosting:** Läuft auf einem vom Benutzer kontrollierten Homeserver.
+- **Aufgaben:**
+    - **API bereitstellen:** Eine JSON-basierte API zum Abrufen und Einreichen von Änderungen an Notizen. Die API muss Versionierung oder Zeitstempel unterstützen, um Synchronisationskonflikte zu erkennen.
+    - **Dateiverwaltung:** Das Backend ist direkt für das Lesen und Schreiben der Markdown-Dateien auf dem Dateisystem des Servers verantwortlich.
+    - **Frontend ausliefern:** Dient als Webserver für die Frontend-Anwendung.
 
-```
-src/
- ├─ components/
- │   ├─ Editor.jsx
- │   ├─ Calendar.jsx
- │   ├─ PageList.jsx
- │   ├─ FrontmatterBlock.jsx
- │   ├─ CommandPalette.jsx
- │   └─ MarkdownPreview.jsx
- ├─ stores/
- │   ├─ pagesStore.js
- │   ├─ settingsStore.js
- │   └─ syncStore.js
- ├─ utils/
- │   ├─ markdown.js
- │   ├─ wikilinks.js
- │   ├─ frontmatter.js
- │   └─ fsAdapter.js
- ├─ App.jsx
- └─ main.jsx
-```
+### 2. Frontend: SolidJS Progressive Web App (PWA)
+- **Zweck:** Eine hochgradig responsive und offline-fähige Benutzeroberfläche.
+- **Plattform:** Läuft in jedem modernen Browser (Desktop, iPhone, iPad).
+- **Kerntechnologien:**
+    - **Service Worker:** Sorgt dafür, dass die App-Hülle sofort geladen wird, auch ohne Netzwerkverbindung.
+    - **IndexedDB:** Dient als vollständige lokale Datenbank auf dem Client-Gerät. Jede Notiz, die vom Server geladen wird, wird hier zwischengespeichert.
+- **Funktionsweise:**
+    - **Offline First:** Alle Lese- und Schreibvorgänge (Anzeigen, Bearbeiten von Notizen) werden **immer** zuerst gegen die lokale IndexedDB ausgeführt. Das sorgt für eine sofortige Reaktion der Benutzeroberfläche, unabhängig vom Netzwerkstatus.
+    - **Hintergrund-Synchronisation:** Die App versucht im Hintergrund, eine Verbindung zum Homeserver herzustellen. Wenn sie erfolgreich ist, führt sie eine Zwei-Wege-Synchronisation durch:
+        1.  **Push:** Lokale, offline getätigte Änderungen werden an den Server gesendet.
+        2.  **Pull:** Änderungen von anderen Geräten (die bereits auf dem Server sind) werden heruntergeladen und in die lokale IndexedDB integriert.
 
 ---
 
 ## 🧩 Implementierungsschritte
 
-### **Phase 1 – Grundgerüst / Editor**
-1. Solid + Vite + Tailwind Setup  
-2. CodeMirror Editor + Live Markdown Preview  
-3. Reactive `createSignal`-Binding für Inhalt  
-4. Markdown-Rendering via `marked`  
-5. Trennung Editor / Preview Ansicht  
+### **Phase 1: Grundgerüst & Editor**
+- **Status:** Weitgehend abgeschlossen.
+- **Aufgaben:** Setup mit SolidJS, Vite und CodeMirror 6. Implementierung des Hybrid-Vorschau-Editors mit Unterstützung für die wichtigsten Markdown-Elemente.
 
-### **Phase 2 – Dateisystem & Datenhaltung**
-1. Local IndexedDB Adapter (`fsAdapter.js`)  
-2. CRUD-Operationen: create/update/delete Markdown Pages  
-3. `pagesStore.js` → zentrale Verwaltung von Seiten-Metadaten  
-4. Speichern des aktuellen Inhalts automatisch bei Änderung  
-5. Temporäre Autosaves im Browser  
+### **Phase 2: Übergang zur Offline-Architektur (Frontend)**
+1.  **Client-Side-Store implementieren:**
+    - Erstellen einer Abstraktionsschicht (z.B. `store.ts`) für alle Datenoperationen.
+    - Diese Schicht wird zunächst eine einfache In-Memory-Datenbank verwenden, um die Logik zu entwickeln.
+2.  **Auf IndexedDB umstellen:**
+    - Die `store.ts`-Implementierung wird durch eine auf IndexedDB basierende Implementierung ersetzt. Bibliotheken wie `idb` können hier helfen.
+3.  **UI an den Store anbinden:**
+    - Alle UI-Komponenten (`FileList.tsx`, `HybridEditor.tsx`) werden so umgebaut, dass sie ihre Daten ausschliesslich vom lokalen Store lesen und Änderungen dorthin schreiben.
+    - Der direkte Aufruf von `fetch` in den Komponenten entfällt.
 
-### **Phase 3 – Kalender & Page-Listen**
-1. `Calendar.jsx`: Monats-View mit auswählbarem Tag  
-2. Anbindung an `pagesStore` → zeigt Pages, die an diesem Tag erstellt/editiert wurden  
-3. `PageList.jsx`: Anzeige “Recently Modified” Pages  
-4. Klick → öffnet Page im Editor  
+### **Phase 3: Synchronisierungs-Logik**
+1.  **Backend-API erweitern:**
+    - Die bestehende API (`/api/files`) muss erweitert werden, um Metadaten wie Zeitstempel oder Versionen für jede Datei zu liefern.
+    - Neue Endpunkte werden benötigt, um Änderungen stapelweise zu empfangen (z.B. `POST /api/sync`).
+2.  **Sync-Service im Frontend:**
+    - Ein neuer Service (`sync.ts`) wird im Frontend erstellt.
+    - Dieser Service ist dafür verantwortlich, den lokalen Store mit dem Backend abzugleichen.
+    - Er implementiert die Logik für den Zwei-Wege-Abgleich und eine einfache Strategie zur Konfliktlösung (z.B. "letzter Schreibvorgang gewinnt").
+3.  **PWA-Fähigkeit herstellen:**
+    - Ein Service Worker wird konfiguriert, um die App-Hülle offline verfügbar zu machen.
 
-### **Phase 4 – Frontmatter & Tags**
-1. Parser mit `gray-matter`  
-2. Darstellung von Frontmatter separat (visuell abgesetzt über dem Content)  
-3. Tags (`#tag`) automatisch erfassen  
-4. Wiki-Links `[[page-name]]` erkennen → Click-Navigation  
-
-### **Phase 5 – Slash Commands & Command Palette**
-1. `/task`, `/frontmatter`, `/code` als Insert-Shortcuts  
-2. Command Palette (`Ctrl+P`)  
-   - Suche nach Pages, Tags, Commands  
-   - Keyboard Navigation  
-3. Anzeige aller verfügbaren Shortcuts  
-
-### **Phase 6 – Query & Embedding Language**
-1. Query-Blocks in Markdown:  
-   ```md
-   ```query
-   from: pages
-   where: tag == "todo"
-   ```
-   ```  
-2. Minimaler Query-Interpreter (JS-basiert)  
-3. Optional später: Lua / Clojure / DSL (per Wasm Sandbox)  
-
-### **Phase 7 – Offline Sync & Git Integration**
-1. `syncStore.js` → Queue von Änderungen  
-2. Sync Adapter (`isomorphic-git`)  
-3. Sync-Strategie:
-   - Offline → local changes in IndexedDB  
-   - Online → Commit & Push  
-4. Merge & Konflikt-Strategie (simple rebase + user review)  
-
-### **Phase 8 – Polish / Extras**
-- Dark / Light Theme  
-- Custom Keyboard Shortcuts  
-- Graph-Ansicht (via D3 oder Cytoscape)  
-- Mobile Layout (responsive)  
-- Plugin-System für spätere Erweiterbarkeit  
+### **Phase 4: Features & Polish**
+- **Kalender-Interaktion:** Klicks auf den Kalender filtern die Notizen im lokalen Store.
+- **Wiki-Links & Tags:** Parsing und Navigation für `[[Links]]` und `#tags` implementieren.
+- **Command Palette:** Eine `Ctrl+P`-Palette für schnellen Zugriff auf Befehle und Notizen.
+- **UI/UX-Verbesserungen:** Dark/Light-Theme, responsives Layout für Mobilgeräte.
 
 ---
 
-## 🚀 Empfohlene Reihenfolge zum Bauen
+## 🔭 Zukünftige Richtungen
 
-| Schritt | Fokus | Ziel |
-|----------|--------|------|
-| 1 | Editor + Preview | Text eingeben & rendern |
-| 2 | File Storage | persistente Seiten |
-| 3 | Calendar + PageList | Navigation über Tage |
-| 4 | Frontmatter & Tags | Meta-Infos sichtbar machen |
-| 5 | Slash Commands | schnell strukturieren |
-| 6 | Query Engine | dynamische Seiten |
-| 7 | Git Sync | Collaboration & Backup |
-| 8 | Graph + Extras | Wissen visuell verbinden |
+### Git-basiertes Versioning (Backend)
+- **Idee:** Das Backend könnte die Markdown-Dateien zusätzlich in einem Git-Repository versionieren. Jede Änderung, die über die API hereinkommt, führt zu einem automatischen Commit.
+- **Vorteile:** Bietet eine vollständige Änderungshistorie, ermöglicht Backups und Wiederherstellungen.
+- **Erweiterung:** Das Frontend könnte eine UI erhalten, um die Commit-Historie einer Notiz anzuzeigen oder sogar Git-Remotes für die Synchronisation mit Diensten wie GitHub zu verwalten. Dies würde die Notwendigkeit eines eigenen Cloud-Dienstes potenziell überflüssig machen und stattdessen auf Git als Sync-Mechanismus setzen.
 
----
-
-## 📦 Tooling Setup
-Einmalige Grundinstallation:
-```bash
-npm create vite@latest my-notes -- --template solid
-cd my-notes
-npm install tailwindcss codemirror marked gray-matter dayjs isomorphic-git
-npx tailwindcss init -p
-```
+### Query-Sprache
+- Implementierung einer eingebetteten Abfragesprache, um dynamische Listen von Notizen basierend auf Tags, Datum oder anderen Metadaten zu erstellen, ähnlich wie bei SilverBullet oder Obsidian.

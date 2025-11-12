@@ -1,25 +1,19 @@
-import { createSignal, onMount, For, Show } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
+import { store } from '../store';
 import styles from './FileList.module.scss';
 
 interface FileMetadata {
   path: string;
-  mtime: string; // ISO date string
+  mtime: string;
   pageType: 'journal' | 'page';
 }
 
-interface CategorizedFiles {
-  journals: FileMetadata[];
-  pages: FileMetadata[];
-}
-
-const INITIAL_VISIBLE_FILES = 5;
-
-function FileSection(props: { title: string; files: FileMetadata[] }) {
+function FileSection(props: {
+  title: string;
+  files: FileMetadata[];
+  onFileClick: (path: string) => void;
+}) {
   const [isExpanded, setExpanded] = createSignal(true);
-  const [showAll, setShowAll] = createSignal(false);
-
-  const visibleFiles = () => 
-    showAll() ? props.files : props.files.slice(0, INITIAL_VISIBLE_FILES);
 
   return (
     <div>
@@ -46,21 +40,16 @@ function FileSection(props: { title: string; files: FileMetadata[] }) {
       </h3>
       <Show when={isExpanded()}>
         <ul class={styles.fileSectionList}>
-          <For each={visibleFiles()}>
+          <For each={props.files}>
             {(file) => (
-              <li class={styles.fileListItem}>
+              <li
+                class={styles.fileListItem}
+                onClick={() => props.onFileClick(file.path)}
+              >
                 {file.path}
               </li>
             )}
           </For>
-          {props.files.length > INITIAL_VISIBLE_FILES && !showAll() && (
-            <li
-              class={`${styles.fileListItem} ${styles.more}`}
-              onClick={() => setShowAll(true)}
-            >
-              ... more
-            </li>
-          )}
         </ul>
       </Show>
     </div>
@@ -68,36 +57,33 @@ function FileSection(props: { title: string; files: FileMetadata[] }) {
 }
 
 export function FileList() {
-  const [files, setFiles] = createSignal<CategorizedFiles>({ journals: [], pages: [] });
-  const [loading, setLoading] = createSignal(true);
-  const [error, setError] = createSignal<string | null>(null);
-
-  onMount(async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/files');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: CategorizedFiles = await response.json();
-      setFiles(data);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  });
+  const handleFileClick = (path: string) => {
+    store.openNote(path);
+  };
 
   return (
     <div class={`${styles.fileListContainer} ${styles.spaceY4}`}>
       <h2 class={styles.fileListTitle}>Files</h2>
-      {loading() && <div class={styles.loading}>Loading files...</div>}
-      {error() && <div class={styles.error}>Error: {error()}</div>}
-      {!loading() && !error() && (
-        <>
-          <FileSection title="Journals" files={files().journals} />
-          <FileSection title="Pages" files={files().pages} />
-        </>
-      )}
+      <Show
+        when={!store.isLoading}
+        fallback={<div class={styles.loading}>Loading files...</div>}
+      >
+        <Show
+          when={!store.files.error}
+          fallback={<div class={styles.error}>Error: {store.files.error.message}</div>}
+        >
+          <FileSection
+            title="Journals"
+            files={store.files()?.journals ?? []}
+            onFileClick={handleFileClick}
+          />
+          <FileSection
+            title="Pages"
+            files={store.files()?.pages ?? []}
+            onFileClick={handleFileClick}
+          />
+        </Show>
+      </Show>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { languages } from "@codemirror/language-data";
 import { EditorState, Range } from "@codemirror/state";
 import { Decoration, EditorView, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
 import dayjs from "dayjs";
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import "./editor-styles.css";
 
@@ -429,6 +429,15 @@ export function HybridEditor(props: HybridEditorProps) {
       view = new EditorView({
         state,
         parent: editorRef,
+      });
+    }
+  });
+
+  createEffect(() => {
+    const newValue = props.value();
+    if (view && newValue !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: newValue }
       });
     }
   });
