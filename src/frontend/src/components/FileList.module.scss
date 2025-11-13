@@ -32,16 +32,52 @@
 }
 
 .fileListItem {
-  padding: 0.25rem 0.5rem; /* py-1 px-2 */
-  border-radius: 0.25rem; /* rounded */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
   cursor: pointer;
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  white-space: nowrap;
+  overflow: hidden;
+
+  &:hover {
+    background-color: var(--btn-hover-bg-color);
+  }
+}
+
+.itemTitle {
+  text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
-  border: none; /* Remove border */
-  box-shadow: none; /* Remove box-shadow */
-  margin-bottom: 0.25rem; /* Add some space between items */
 }
+
+.itemActions {
+  flex-shrink: 0;
+}
+
+.moreButton {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0 0.5rem;
+  border-radius: var(--border-radius);
+  font-weight: bold;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-background-hover);
+    color: var(--color-text-primary);
+  }
+}
+
+.fileListItem:hover .moreButton {
+  opacity: 1; /* Visible on hover */
+}
+
 
 .fileListItem:hover {
   background-color: var(--btn-hover-bg-color); /* Hover background color */

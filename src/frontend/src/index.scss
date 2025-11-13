@@ -13,6 +13,7 @@ body {
   --text-color-light: #a0aec0;
   --error-color: #ef4444;
   --bg-color-sidebar: #f3f4f6;
+  --color-background-secondary: var(--bg-color-sidebar); /* Define secondary background color */
   --light-theme-bg: #ffffff;
   --dark-theme-bg: #1a202c;
 }
@@ -26,6 +27,7 @@ body.dark {
   --text-color-light: #a0aec0;
   --error-color: #ef4444;
   --bg-color-sidebar: #1f2937;
+  --color-background-secondary: var(--bg-color-sidebar); /* Define secondary background color */
   --light-theme-bg: #ffffff;
   --dark-theme-bg: #1a202c;
 }

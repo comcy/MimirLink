@@ -1,3 +1,4 @@
+import { store } from '../store';
 import { useTheme } from './ThemeContext';
 import styles from './IconSidebar.module.scss';
 
@@ -8,45 +9,58 @@ interface IconSidebarProps {
 export function IconSidebar(props: IconSidebarProps) {
   const { theme, toggleTheme } = useTheme();
 
+  const handleFileClick = () => {
+    store.setActiveSidebarView('files');
+    props.onFileIconClick(); // This toggles the sidebar visibility
+  };
+
+  const handleSearchClick = () => {
+    store.setActiveSidebarView('search');
+  };
+
   return (
     <div class={styles.sidebar}>
       <div class={styles.topIcons}>
-        {/* File Icon */}
         <button
-          onClick={props.onFileIconClick}
           class={styles.iconButton}
-          title="Toggle File Explorer"
+          classList={{ [styles.activeIcon]: store.activeSidebarView() === 'files' }}
+          onClick={handleFileClick}
+          aria-label="Toggle File Browser"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          {/* File Icon SVG */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
         </button>
-
-        {/* Search Icon */}
         <button
           class={styles.iconButton}
-          title="Search (not implemented)"
+          classList={{ [styles.activeIcon]: store.activeSidebarView() === 'search' }}
+          onClick={handleSearchClick}
+          aria-label="Search"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          {/* Search Icon SVG */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+      </div>
+      <div class={styles.bottomIcons}>
+        <button class={styles.iconButton} onClick={toggleTheme} aria-label="Toggle Theme">
+          {/* Custom Theme Toggle Icon */}
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="1.5">
+            <path
+              classList={{
+                [styles.leftSemicircleLight]: theme() === 'light',
+                [styles.leftSemicircleDark]: theme() === 'dark',
+              }}
+              d="M12 2 A10 10 0 0 0 12 22 V2Z"
+            />
+            <path
+              classList={{
+                [styles.rightSemicircleLight]: theme() === 'light',
+                [styles.rightSemicircleDark]: theme() === 'dark',
+              }}
+              d="M12 2 A10 10 0 0 1 12 22 V2Z"
+            />
           </svg>
         </button>
       </div>
-
-      {/* Theme Toggle Button */}
-      <button onClick={toggleTheme} class={`${styles.iconButton} ${styles.themeSwitcherButton}`}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" />
-          <path
-            d="M12 2A10 10 0 0012 22Z"
-            class={theme() === 'light' ? styles.leftSemicircleLight : styles.leftSemicircleDark}
-          />
-          <path
-            d="M12 2A10 10 0 0112 22Z"
-            class={theme() === 'light' ? styles.rightSemicircleLight : styles.rightSemicircleDark}
-          />
-        </svg>
-      </button>
     </div>
   );
 }

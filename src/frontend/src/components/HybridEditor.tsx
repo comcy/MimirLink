@@ -4,12 +4,14 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { EditorState, Range } from "@codemirror/state";
+import { EditorState, Range, Annotation } from "@codemirror/state";
 import { Decoration, EditorView, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
 import dayjs from "dayjs";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import "./editor-styles.css";
+
+const loadContentAnnotation = Annotation.define<string>();
 
 interface HybridEditorProps {
   value: Accessor<string>;
@@ -400,7 +402,10 @@ export function HybridEditor(props: HybridEditorProps) {
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      props.setValue(update.state.doc.toString());
+      // Don't call setValue if the change is from loading content
+      if (!update.transactions.some(tr => tr.annotation(loadContentAnnotation))) {
+        props.setValue(update.state.doc.toString());
+      }
     }
   });
 
@@ -423,6 +428,26 @@ export function HybridEditor(props: HybridEditorProps) {
           iconEmojiPlugin(),
           autocompletion({ override: [slashCommands] }),
           datePickerPlugin(props.onShowDatePicker),
+          EditorView.domEventHandlers({
+            mousedown: (event, view) => {
+              const pos = view.posAtCoords(event, false);
+              if (pos === null || pos < 0) {
+                // If the click is outside the text area, check if it's in the scroll area
+                const target = event.target as HTMLElement;
+                if (target.classList.contains('cm-scroller') || target.classList.contains('cm-content')) {
+                  // Move cursor to the end of the document
+                  view.dispatch({
+                    selection: { anchor: view.state.doc.length },
+                    scrollIntoView: true,
+                  });
+                  // Focus the editor
+                  view.focus();
+                  // Prevent default behavior which might cause loss of focus
+                  event.preventDefault();
+                }
+              }
+            },
+          }),
         ],
       });
 
@@ -437,7 +462,8 @@ export function HybridEditor(props: HybridEditorProps) {
     const newValue = props.value();
     if (view && newValue !== view.state.doc.toString()) {
       view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: newValue }
+        changes: { from: 0, to: view.state.doc.length, insert: newValue },
+        annotations: loadContentAnnotation.of('load')
       });
     }
   });

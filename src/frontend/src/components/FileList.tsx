@@ -1,19 +1,20 @@
 import { For, Show, createSignal } from 'solid-js';
-import { store } from '../store';
+import { store, type NoteMetadata } from '../store';
+import { DropdownMenu } from './DropdownMenu';
+import menuItemStyles from './DropdownMenu.module.scss';
 import styles from './FileList.module.scss';
-
-interface FileMetadata {
-  path: string;
-  mtime: string;
-  pageType: 'journal' | 'page';
-}
 
 function FileSection(props: {
   title: string;
-  files: FileMetadata[];
+  files: NoteMetadata[];
   onFileClick: (path: string) => void;
 }) {
   const [isExpanded, setExpanded] = createSignal(true);
+
+  const handleDelete = (e: MouseEvent, path: string) => {
+    e.stopPropagation();
+    store.deleteNote(path);
+  };
 
   return (
     <div>
@@ -42,11 +43,21 @@ function FileSection(props: {
         <ul class={styles.fileSectionList}>
           <For each={props.files}>
             {(file) => (
-              <li
-                class={styles.fileListItem}
-                onClick={() => props.onFileClick(file.path)}
-              >
-                {file.path}
+              <li class={styles.fileListItem} onClick={() => props.onFileClick(file.path)}>
+                <span class={styles.itemTitle}>{file.title}</span>
+                <div class={styles.itemActions}>
+                  <DropdownMenu
+                    trigger={(props) => (
+                      <button {...props} class={styles.moreButton}>
+                        ...
+                      </button>
+                    )}
+                  >
+                    <button class={menuItemStyles.menuItem} onClick={(e) => handleDelete(e, file.path)}>
+                      Delete
+                    </button>
+                  </DropdownMenu>
+                </div>
               </li>
             )}
           </For>
@@ -70,7 +81,7 @@ export function FileList() {
       >
         <Show
           when={!store.files.error}
-          fallback={<div class={styles.error}>Error: {store.files.error.message}</div>}
+          fallback={<div className={styles.error}>Error: {store.files.error.message}</div>}
         >
           <FileSection
             title="Journals"

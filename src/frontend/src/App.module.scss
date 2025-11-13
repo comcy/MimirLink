@@ -1,6 +1,12 @@
+.appContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 .main {
   display: flex;
-  height: 100vh;
+  flex-grow: 1; /* Fill remaining vertical space */
   background-color: var(--bg-color);
   color: var(--text-color);
   overflow: hidden; /* Prevents the whole page from scrolling */
@@ -12,7 +18,7 @@
   flex-direction: column;
   flex-shrink: 0;
   width: clamp(280px, 22%, 350px);
-  overflow: hidden;
+  /* overflow: hidden; is removed to allow dropdown to show */
   padding-inline: 1rem; /* Default padding */
 }
 
@@ -20,6 +26,7 @@
   width: 0;
   padding-inline: 0; /* Remove padding when closed */
   border-right-color: transparent;
+  overflow: hidden; /* Clip content when closed */
 }
 
 .contentContainer {
@@ -27,6 +34,8 @@
   flex-direction: column;
   flex-grow: 1;
   min-width: 0; /* Important for flex-grow items to prevent overflow */
+  position: relative; /* Create a stacking context */
+  z-index: 1; /* Ensure it's above the sidebar */
 }
 
 .editorWrapper {

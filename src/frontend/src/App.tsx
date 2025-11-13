@@ -4,32 +4,17 @@
 
 
 import { createEffect, createSignal, Show } from 'solid-js';
-
-
-
 import { Calendar } from './components/Calendar';
-
-
-
 import { DatePicker } from './components/DatePicker';
-
-
-
 import { FileList } from './components/FileList';
-
-
-
 import { HybridEditor } from './components/HybridEditor';
-
-
-
 import { IconSidebar } from './components/IconSidebar';
-
-
-
 import { MenuBar } from './components/MenuBar';
-
 import { ApplicationMenuBar } from './components/ApplicationMenuBar';
+import { SearchResults } from './components/SearchResults'; // Import SearchResults
+import { WelcomePage } from './components/WelcomePage';
+
+
 
 
 
@@ -37,7 +22,11 @@ import { useTheme } from './components/ThemeContext';
 
 
 
+
+
 import { store } from './store';
+
+
 
 
 
@@ -49,7 +38,13 @@ import styles from './App.module.scss';
 
 
 
+
+
+
+
 function App() {
+
+
 
 
 
@@ -61,7 +56,13 @@ function App() {
 
 
 
+
+
+
+
   const [isDatePickerVisible, setDatePickerVisible] = createSignal(false);
+
+
 
 
 
@@ -69,7 +70,11 @@ function App() {
 
 
 
+
+
   const [datePickerCallback, setDatePickerCallback] = createSignal<(date: string) => void>(() => {});
+
+
 
 
 
@@ -81,11 +86,19 @@ function App() {
 
 
 
+
+
+
+
   createEffect(() => {
 
 
 
+
+
     document.body.className = theme();
+
+
 
 
 
@@ -97,7 +110,13 @@ function App() {
 
 
 
+
+
+
+
   const showDatePicker = (pos: { top: number, left: number }, callback: (date: string) => void) => {
+
+
 
 
 
@@ -105,7 +124,11 @@ function App() {
 
 
 
+
+
     setDatePickerCallback(() => callback);
+
+
 
 
 
@@ -113,7 +136,13 @@ function App() {
 
 
 
+
+
   };
+
+
+
+
 
 
 
@@ -125,7 +154,11 @@ function App() {
 
 
 
+
+
     datePickerCallback()(date);
+
+
 
 
 
@@ -133,7 +166,13 @@ function App() {
 
 
 
+
+
   };
+
+
+
+
 
 
 
@@ -145,7 +184,11 @@ function App() {
 
 
 
+
+
     setSidebarOpen(!isSidebarOpen());
+
+
 
 
 
@@ -157,87 +200,61 @@ function App() {
 
 
 
+
+
+
+
   return (
 
 
 
-    <main class={styles.main}>
+
+
+    <div class={styles.appContainer}>
 
 
 
-      <IconSidebar onFileIconClick={toggleSidebar} />
+
+
+      <ApplicationMenuBar />
 
 
 
-      <div class={styles.sidebarContainer} classList={{ [styles.closed]: !isSidebarOpen() }}>
+
+
+      <main class={styles.main}>
 
 
 
-        <Calendar />
+
+
+        <IconSidebar onFileIconClick={toggleSidebar} />
 
 
 
-        <FileList />
+
+
+        <div class={styles.sidebarContainer} classList={{ [styles.closed]: !isSidebarOpen() }}>
 
 
 
-      </div>
+
+
+          <Show when={store.activeSidebarView() === 'files'} fallback={<SearchResults />}>
 
 
 
-      <div class={styles.contentContainer}>
 
-        <ApplicationMenuBar />
 
-        <MenuBar />
+            <Calendar />
 
 
 
-        <div class={styles.editorWrapper}>
 
 
-
-          <HybridEditor
-
+            <FileList />
 
 
-            value={store.activeContent}
-
-
-
-            setValue={store.updateActiveContent}
-
-
-
-            onShowDatePicker={showDatePicker}
-
-
-
-          />
-
-
-
-          <Show when={isDatePickerVisible()}>
-
-
-
-            <DatePicker
-
-
-
-              position={datePickerPosition()}
-
-
-
-              onSelect={onDateSelect}
-
-
-
-              onClose={() => setDatePickerVisible(false)}
-
-
-
-            />
 
 
 
@@ -245,19 +262,155 @@ function App() {
 
 
 
+
+
         </div>
 
 
 
-      </div>
+
+
+        <div class={styles.contentContainer}>
 
 
 
-    </main>
+
+
+          <Show when={store.openNotes().length > 0}>
+
+
+
+
+
+            <MenuBar />
+
+
+
+
+
+          </Show>
+
+
+
+
+
+          <div class={styles.editorWrapper}>
+
+
+
+
+
+            <Show when={store.openNotes().length > 0} fallback={<WelcomePage />}>
+
+
+
+
+
+              <HybridEditor
+
+
+
+
+
+                value={store.activeContent}
+
+
+
+
+
+                setValue={store.updateActiveContent}
+
+
+
+
+
+                onShowDatePicker={showDatePicker}
+
+
+
+
+
+              />
+
+
+
+
+
+            </Show>
+
+
+
+
+
+            <Show when={isDatePickerVisible()}>
+
+
+
+
+
+              <DatePicker
+
+
+
+
+
+                position={datePickerPosition()}
+
+
+
+
+
+                onSelect={onDateSelect}
+
+
+
+
+
+                onClose={() => setDatePickerVisible(false)}
+
+
+
+
+
+              />
+
+
+
+
+
+            </Show>
+
+
+
+
+
+          </div>
+
+
+
+
+
+        </div>
+
+
+
+
+
+      </main>
+
+
+
+
+
+    </div>
+
+
 
 
 
   );
+
+
 
 
 
@@ -269,7 +422,23 @@ function App() {
 
 
 
+
+
+
+
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
