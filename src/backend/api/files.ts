@@ -77,7 +77,7 @@ function rebuildMetadataFromMarkdown(notesDirectory: string, type: NoteType): No
       }
     }
   }
-  
+
   writeMetadata(notesDirectory, type, metadata);
   console.log(`Rebuild complete for ${type}. Found ${metadata.length} notes.`);
   return metadata;
@@ -109,7 +109,7 @@ export function createFilesRouter(notesDirectory: string): Router {
     try {
       const journals = readMetadata(notesDirectory, 'journal');
       const pages = readMetadata(notesDirectory, 'page');
-      
+
       const allNotes = [...journals, ...pages];
       allNotes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -153,7 +153,7 @@ export function createFilesRouter(notesDirectory: string): Router {
       const dateStr = format(new Date(), 'yyyy-MM-dd');
       relativePath = path.join('journals', `${dateStr}.md`).replace(/\\/g, '/');
       content = `---
-title: Journal for ${dateStr}
+title: Journal ${dateStr}
 date: ${dateStr}
 pageType: journal
 tags: []
@@ -184,7 +184,7 @@ tags: []
 
     try {
       fs.writeFileSync(absolutePath, content, 'utf-8');
-      
+
       const newMetadata = extractMetadataFromContent(relativePath, content);
       const allMetadata = readMetadata(notesDirectory, type);
       allMetadata.push(newMetadata);
@@ -209,7 +209,7 @@ tags: []
 
     try {
       fs.writeFileSync(absolutePath, content, 'utf-8');
-      
+
       const updatedMetadata = extractMetadataFromContent(filePath, content);
       const type = updatedMetadata.type;
       const allMetadata = readMetadata(notesDirectory, type);
@@ -220,7 +220,7 @@ tags: []
       } else {
         allMetadata.push(updatedMetadata);
       }
-      
+
       writeMetadata(notesDirectory, type, allMetadata);
 
       res.status(200).json({ message: 'File updated successfully' });
@@ -241,7 +241,7 @@ tags: []
       const journals = readMetadata(notesDirectory, 'journal');
       const pages = readMetadata(notesDirectory, 'page');
       const allNotes = [...journals, ...pages];
-      
+
       const searchResults = [];
       const lowerCaseQuery = query.toLowerCase();
 
@@ -250,7 +250,7 @@ tags: []
         try {
           const content = fs.readFileSync(absolutePath, 'utf-8');
           const lines = content.split('\n');
-          
+
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line.toLowerCase().includes(lowerCaseQuery)) {
@@ -260,7 +260,7 @@ tags: []
                 context: line.trim(),
               });
               // Take only the first match per file to keep results concise
-              break; 
+              break;
             }
           }
         } catch (e) {
@@ -268,7 +268,7 @@ tags: []
           console.warn(`Could not read file ${note.path} during search.`, e);
         }
       }
-      
+
       res.json(searchResults);
     } catch (error) {
       console.error('Failed to perform search:', error);
@@ -304,7 +304,7 @@ tags: []
       const type = filePath.startsWith('journals') ? 'journal' : 'page';
       const allMetadata = readMetadata(notesDirectory, type);
       const updatedMetadata = allMetadata.filter(note => note.path !== filePath);
-      
+
       // Write back only if changes were made
       if (updatedMetadata.length < allMetadata.length) {
         writeMetadata(notesDirectory, type, updatedMetadata);

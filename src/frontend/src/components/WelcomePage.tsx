@@ -1,5 +1,5 @@
 import styles from './WelcomePage.module.scss';
-import logo from '../../../../logo.png'; // Adjust path as necessary
+import logo from '/logo.png'; // Adjust path as necessary
 
 export function WelcomePage() {
   return (

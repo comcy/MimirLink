@@ -109,7 +109,8 @@ function unifiedDecorationPlugin() {
         from,
         to,
         enter: (node) => {
-          if (node.to >= activeLine.from && node.from <= activeLine.to) {
+          // Don't apply special styling to the active line, but ALWAYS style Frontmatter
+          if (node.name !== "Frontmatter" && node.to >= activeLine.from && node.from <= activeLine.to) {
             return;
           }
 

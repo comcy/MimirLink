@@ -95,6 +95,9 @@ async function deleteServerFile(path: string): Promise<Response> {
 // --- 3. Store-Erstellung ---
 
 function createNoteStore() {
+  // --- Dialog State ---
+  const [isNewPageDialogOpen, setIsNewPageDialogOpen] = createSignal(false);
+
   // --- File & Note State ---
   const [files, { refetch: refetchFiles }] = createResource<CategorizedFiles>(fetchFiles, {
     initialValue: { journals: [], pages: [] },
@@ -124,7 +127,7 @@ function createNoteStore() {
 
   // --- Aktionen ---
   const performSearch = (query: string) => setSearchQuery(query);
-  
+
   const openNote = async (path: string) => {
     if (openNotes().find(note => note.path === path)) {
       setActiveNotePath(path);
@@ -178,15 +181,14 @@ function createNoteStore() {
     }
   };
 
-  const createNewPage = async () => {
-    const title = prompt('Enter the title for the new page:');
+  const createNewPage = () => {
+    setIsNewPageDialogOpen(true);
+  };
+
+  const confirmCreateNewPage = async (title: string) => {
     if (!title) return;
     try {
       const { path } = await createNoteOnServer(title, 'page');
-      // When a new page is created, it's considered saved initially
-      const newNote: Note = { path, content: '', mtime: new Date().toISOString(), hasUnsavedChanges: false };
-      setOpenNotes(prev => [...prev, newNote]);
-      setActiveNotePath(path);
       await refetchFiles();
       await openNote(path);
     } catch (error) {
@@ -211,10 +213,6 @@ function createNoteStore() {
 
     try {
       const { path } = await createNoteOnServer(`Journal for ${dateStr}`, 'journal');
-      // When a new journal is created, it's considered saved initially
-      const newNote: Note = { path, content: '', mtime: new Date().toISOString(), hasUnsavedChanges: false };
-      setOpenNotes(prev => [...prev, newNote]);
-      setActiveNotePath(path);
       await refetchFiles();
       await openNote(path);
     } catch (error) {
@@ -252,6 +250,7 @@ function createNoteStore() {
     activeNotePath,
     searchQuery,
     searchResults,
+    isNewPageDialogOpen,
     // Actions
     refetchFiles,
     openNote,
@@ -260,6 +259,8 @@ function createNoteStore() {
     setActiveNotePath,
     updateActiveContent,
     createNewPage,
+    confirmCreateNewPage,
+    setIsNewPageDialogOpen,
     openOrCreateJournalForToday,
     saveCurrentNote,
     performSearch,

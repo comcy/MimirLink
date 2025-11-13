@@ -4,15 +4,66 @@
 
 
 import { createEffect, createSignal, Show } from 'solid-js';
+
+
+
+
+
 import { Calendar } from './components/Calendar';
+
+
+
+
+
 import { DatePicker } from './components/DatePicker';
+
+
+
+
+
 import { FileList } from './components/FileList';
+
+
+
+
+
 import { HybridEditor } from './components/HybridEditor';
+
+
+
+
+
 import { IconSidebar } from './components/IconSidebar';
+
+
+
+
+
 import { MenuBar } from './components/MenuBar';
+
+
+
+
+
 import { ApplicationMenuBar } from './components/ApplicationMenuBar';
-import { SearchResults } from './components/SearchResults'; // Import SearchResults
+
+
+
+
+
+import { SearchResults } from './components/SearchResults';
+
+
+
+
+
 import { WelcomePage } from './components/WelcomePage';
+
+
+
+
+
+import { NewPageDialog } from './components/NewPageDialog'; // Import the new dialog
 
 
 
@@ -402,6 +453,42 @@ function App() {
 
 
 
+      <Show when={store.isNewPageDialogOpen()}>
+
+
+
+
+
+        <NewPageDialog
+
+
+
+
+
+          onClose={() => store.setIsNewPageDialogOpen(false)}
+
+
+
+
+
+          onCreate={(title) => store.confirmCreateNewPage(title)}
+
+
+
+
+
+        />
+
+
+
+
+
+      </Show>
+
+
+
+
+
     </div>
 
 
@@ -427,6 +514,12 @@ function App() {
 
 
 export default App;
+
+
+
+
+
+
 
 
 
