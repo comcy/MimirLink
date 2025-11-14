@@ -50,7 +50,6 @@ async function fetchFiles(): Promise<CategorizedFiles> {
 }
 
 async function searchFiles(query: string): Promise<SearchResult[]> {
-  if (!query) return [];
   const response = await fetch(`${API_BASE_URL}/files/search?q=${encodeURIComponent(query)}`);
   if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
   return response.json();

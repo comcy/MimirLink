@@ -233,40 +233,46 @@ tags: []
   // GET /api/files/search - Search all notes
   router.get('/search', (req, res) => {
     const query = req.query.q as string;
-    if (!query) {
-      return res.status(400).json({ error: 'Query parameter "q" is required' });
-    }
 
     try {
       const journals = readMetadata(notesDirectory, 'journal');
       const pages = readMetadata(notesDirectory, 'page');
-      const allNotes = [...journals, ...pages];
+      let allNotes = [...journals, ...pages];
 
-      const searchResults = [];
-      const lowerCaseQuery = query.toLowerCase();
+      let searchResults = [];
+      if (query) { // Only filter if there's a query
+        const lowerCaseQuery = query.toLowerCase();
 
-      for (const note of allNotes) {
-        const absolutePath = path.join(notesDirectory, note.path);
-        try {
-          const content = fs.readFileSync(absolutePath, 'utf-8');
-          const lines = content.split('\n');
+        for (const note of allNotes) {
+          const absolutePath = path.join(notesDirectory, note.path);
+          try {
+            const content = fs.readFileSync(absolutePath, 'utf-8');
+            const lines = content.split('\n');
 
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (line.toLowerCase().includes(lowerCaseQuery)) {
-              searchResults.push({
-                path: note.path,
-                title: note.title,
-                context: line.trim(),
-              });
-              // Take only the first match per file to keep results concise
-              break;
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              if (line.toLowerCase().includes(lowerCaseQuery)) {
+                searchResults.push({
+                  path: note.path,
+                  title: note.title,
+                  context: line.trim(),
+                });
+                // Take only the first match per file to keep results concise
+                break;
+              }
             }
+          } catch (e) {
+            // Ignore files that can't be read
+            console.warn(`Could not read file ${note.path} during search.`, e);
           }
-        } catch (e) {
-          // Ignore files that can't be read
-          console.warn(`Could not read file ${note.path} during search.`, e);
         }
+      } else { // If query is empty, return all notes, sorted by date
+        searchResults = allNotes.map(note => ({
+          path: note.path,
+          title: note.title,
+          context: "No search query - showing all notes",
+        }));
+        searchResults.sort((a, b) => new Date(b.path).getTime() - new Date(a.path).getTime());
       }
 
       res.json(searchResults);

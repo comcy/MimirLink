@@ -2,8 +2,14 @@ import { store } from '../store';
 import { DropdownMenu } from './DropdownMenu';
 import styles from './ApplicationMenuBar.module.scss';
 import menuItemStyles from './DropdownMenu.module.scss';
+import logo from '/logo.png';
+import type { Setter } from 'solid-js';
 
-export function ApplicationMenuBar() {
+interface ApplicationMenuBarProps {
+  setSidebarOpen: Setter<boolean>;
+}
+
+export function ApplicationMenuBar(props: ApplicationMenuBarProps) {
   let searchTimeout: number;
 
   const handleSearchInput = (e: Event) => {
@@ -17,8 +23,8 @@ export function ApplicationMenuBar() {
   return (
     <div class={styles.applicationMenuBar}>
       <DropdownMenu
-        trigger={(props) => (
-          <button {...props} class={styles.menuButton}>
+        trigger={(dropdownProps) => (
+          <button {...dropdownProps} class={styles.menuButton}>
             File
           </button>
         )}
@@ -45,6 +51,14 @@ export function ApplicationMenuBar() {
           class={styles.searchInput}
           value={store.searchQuery()}
           onInput={handleSearchInput}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              clearTimeout(searchTimeout); // Clear debounce
+              store.performSearch((e.currentTarget as HTMLInputElement).value);
+              store.setActiveSidebarView('search'); // Ensure search view is active
+              props.setSidebarOpen(true); // Open sidebar to show results
+            }
+          }}
         />
       </div>
     </div>

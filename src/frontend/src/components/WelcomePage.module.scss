@@ -11,8 +11,15 @@
 }
 
 .logo {
-  max-width: 450px;
+  max-width: 150px;
+  /* Adjust as needed */
   margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .logo {
+    max-width: 100px;
+  }
 }
 
 .title {

@@ -168,6 +168,23 @@
   display: none;
 }
 
+/* --- Mobile Optimizations --- */
+@media (max-width: 768px) {
+  .cm-heading-1 {
+    font-size: 1.8rem;
+  }
+  .cm-heading-2 {
+    font-size: 1.5rem;
+  }
+  .cm-heading-3 {
+    font-size: 1.3rem;
+  }
+  .cm-heading-4 {
+    font-size: 1.2rem;
+  }
+}
+
+
 /* Dark Theme Styles */
 .dark .cm-gutters {
   background-color: #1a202c;

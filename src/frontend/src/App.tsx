@@ -67,10 +67,16 @@ function App() {
 
   return (
     <div class={styles.appContainer}>
-      <ApplicationMenuBar />
+      <ApplicationMenuBar setSidebarOpen={setSidebarOpen} />
       <main class={styles.main}>
+        <Show when={isSidebarOpen()}>
+          <div class={styles.backdrop} onClick={() => setSidebarOpen(false)} />
+        </Show>
         <IconSidebar onFileIconClick={handleFileIconClick} onSearchIconClick={handleSearchIconClick} />
         <div class={styles.sidebarContainer} classList={{ [styles.closed]: !isSidebarOpen() }}>
+          <button class={styles.sidebarCloseButton} onClick={() => setSidebarOpen(false)}>
+            &times;
+          </button>
           <Show when={store.activeSidebarView() === 'files'} fallback={<SearchResults />}>
             <Calendar />
             <FileList />
