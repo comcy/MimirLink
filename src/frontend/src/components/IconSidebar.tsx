@@ -4,19 +4,11 @@ import styles from './IconSidebar.module.scss';
 
 interface IconSidebarProps {
   onFileIconClick: () => void;
+  onSearchIconClick: () => void;
 }
 
 export function IconSidebar(props: IconSidebarProps) {
   const { theme, toggleTheme } = useTheme();
-
-  const handleFileClick = () => {
-    store.setActiveSidebarView('files');
-    props.onFileIconClick(); // This toggles the sidebar visibility
-  };
-
-  const handleSearchClick = () => {
-    store.setActiveSidebarView('search');
-  };
 
   return (
     <div class={styles.sidebar}>
@@ -24,7 +16,7 @@ export function IconSidebar(props: IconSidebarProps) {
         <button
           class={styles.iconButton}
           classList={{ [styles.activeIcon]: store.activeSidebarView() === 'files' }}
-          onClick={handleFileClick}
+          onClick={props.onFileIconClick}
           aria-label="Toggle File Browser"
         >
           {/* File Icon SVG */}
@@ -33,7 +25,7 @@ export function IconSidebar(props: IconSidebarProps) {
         <button
           class={styles.iconButton}
           classList={{ [styles.activeIcon]: store.activeSidebarView() === 'search' }}
-          onClick={handleSearchClick}
+          onClick={props.onSearchIconClick}
           aria-label="Search"
         >
           {/* Search Icon SVG */}
