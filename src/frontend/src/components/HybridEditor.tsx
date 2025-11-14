@@ -1,11 +1,12 @@
 import type { Completion, CompletionResult } from "@codemirror/autocomplete";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
+import { indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { EditorState, Range, Annotation } from "@codemirror/state";
-import { Decoration, EditorView, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
+import { Decoration, EditorView, keymap, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
 import dayjs from "dayjs";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
@@ -415,6 +416,7 @@ export function HybridEditor(props: HybridEditorProps) {
       const state = EditorState.create({
         doc: props.value(),
         extensions: [
+          keymap.of([indentWithTab]),
           yamlFrontmatter({
             content: markdown({
               base: markdownLanguage,

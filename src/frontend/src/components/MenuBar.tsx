@@ -19,7 +19,8 @@ export function MenuBar() {
     menuBarRef?.addEventListener('wheel', handleWheel);
   });
 
-  const handleTabClick = (path: string) => {
+  const handleTabClick = async (path: string) => {
+    await store.saveCurrentNote();
     store.setActiveNotePath(path);
   };
 

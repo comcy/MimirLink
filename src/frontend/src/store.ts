@@ -128,6 +128,9 @@ function createNoteStore() {
   const performSearch = (query: string) => setSearchQuery(query);
 
   const openNote = async (path: string) => {
+    // Save the currently active note before opening a new one
+    await saveNote(activeNote());
+
     if (openNotes().find(note => note.path === path)) {
       setActiveNotePath(path);
       return;
@@ -143,9 +146,16 @@ function createNoteStore() {
     }
   };
 
-  const closeNote = (path: string) => {
+  const closeNote = (path: string, force = false) => {
+    const noteToClose = openNotes().find(note => note.path === path);
+    if (!noteToClose) return;
+
+    // Save before closing, unless forced
+    if (!force) {
+      saveNote(noteToClose);
+    }
+
     const noteToCloseIndex = openNotes().findIndex(note => note.path === path);
-    if (noteToCloseIndex === -1) return;
 
     if (activeNotePath() === path) {
       const newActiveIndex = noteToCloseIndex > 0 ? noteToCloseIndex - 1 : 0;
@@ -165,19 +175,22 @@ function createNoteStore() {
     if (note) await setNote(note);
   };
 
-  const saveCurrentNote = async () => {
-    const note = activeNote();
-    if (note) {
+  const saveNote = async (noteToSave: Note | undefined | null) => {
+    if (noteToSave && noteToSave.hasUnsavedChanges) {
       try {
-        await updateServerFile(note.path, note.content);
+        await updateServerFile(noteToSave.path, noteToSave.content);
         setOpenNotes(prev => prev.map(n =>
-          n.path === note.path ? { ...n, hasUnsavedChanges: false } : n
+          n.path === noteToSave.path ? { ...n, hasUnsavedChanges: false } : n
         ));
-        refetchFiles();
+        // No need to refetch files on every save, only on create/delete
       } catch (error) {
         console.error(`Failed to save note to server:`, error);
       }
     }
+  };
+
+  const saveCurrentNote = async () => {
+    await saveNote(activeNote());
   };
 
   const createNewPage = () => {
@@ -225,8 +238,8 @@ function createNoteStore() {
       if (!response.ok) {
         throw new Error(`Server error: ${response.statusText}`);
       }
-      // Close the tab if it's open
-      closeNote(path);
+      // Close the tab if it's open, without saving
+      closeNote(path, true);
       // Refresh the file list
       await refetchFiles();
     } catch (error) {

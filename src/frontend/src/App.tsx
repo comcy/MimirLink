@@ -22,6 +22,25 @@ function App() {
 
   createEffect(() => {
     document.body.className = theme();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        store.saveCurrentNote();
+      }
+    };
+
+    const handleBlur = () => {
+      store.saveCurrentNote();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('blur', handleBlur);
+
+    onCleanup(() => {
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', handleBlur);
+    });
   });
 
   const showDatePicker = (pos: { top: number, left: number }, callback: (date: string) => void) => {
