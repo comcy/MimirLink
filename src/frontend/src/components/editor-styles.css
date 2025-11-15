@@ -168,6 +168,13 @@
   display: none;
 }
 
+.cm-wikilink {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
 /* --- Mobile Optimizations --- */
 @media (max-width: 768px) {
   .cm-heading-1 {

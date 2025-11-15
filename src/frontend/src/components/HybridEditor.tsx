@@ -10,9 +10,11 @@ import { Decoration, EditorView, keymap, lineNumbers, ViewUpdate, WidgetType } f
 import dayjs from "dayjs";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
+import { store } from "../store";
 import "./editor-styles.css";
 
 const loadContentAnnotation = Annotation.define<string>();
+const WIKILINK_REGEX = /\[\[(.*?)\]\]/g;
 
 interface HybridEditorProps {
   value: Accessor<string>;
@@ -96,6 +98,28 @@ class IconWidget extends WidgetType {
 }
 
 // --- Plugins ---
+
+function wikiLinkPlugin() {
+  return EditorView.decorations.of((view) => {
+    const builder: Range<Decoration>[] = [];
+    for (const { from, to } of view.visibleRanges) {
+      const text = view.state.doc.sliceString(from, to);
+      for (const match of text.matchAll(WIKILINK_REGEX)) {
+        const start = from + match.index!;
+        const end = start + match[0].length;
+        const pageName = match[1];
+
+        builder.push(
+          Decoration.mark({
+            class: "cm-wikilink",
+            attributes: { "data-wikilink-name": pageName },
+          }).range(start, end)
+        );
+      }
+    }
+    return Decoration.set(builder);
+  });
+}
 
 function unifiedDecorationPlugin() {
   return EditorView.decorations.of((view) => {
@@ -416,7 +440,17 @@ export function HybridEditor(props: HybridEditorProps) {
       const state = EditorState.create({
         doc: props.value(),
         extensions: [
-          keymap.of([indentWithTab]),
+          keymap.of([
+            indentWithTab,
+            {
+              key: "Mod-s",
+              run: () => {
+                store.saveCurrentNote();
+                return true;
+              },
+              preventDefault: true,
+            }
+          ]),
           yamlFrontmatter({
             content: markdown({
               base: markdownLanguage,
@@ -429,10 +463,23 @@ export function HybridEditor(props: HybridEditorProps) {
           updateListener,
           unifiedDecorationPlugin(),
           iconEmojiPlugin(),
+          wikiLinkPlugin(), // Moved to after other decoration plugins
           autocompletion({ override: [slashCommands] }),
           datePickerPlugin(props.onShowDatePicker),
           EditorView.domEventHandlers({
             mousedown: (event, view) => {
+              const target = event.target as HTMLElement;
+              const linkElement = target.closest('.cm-wikilink');
+              
+              if (linkElement) {
+                const wikilinkName = linkElement.getAttribute('data-wikilink-name');
+                if (wikilinkName) {
+                  event.preventDefault();
+                  store.openWikiLink(wikilinkName);
+                  return;
+                }
+              }
+
               const pos = view.posAtCoords(event, false);
               if (pos === null || pos < 0) {
                 // If the click is outside the text area, check if it's in the scroll area

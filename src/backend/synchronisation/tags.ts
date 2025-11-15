@@ -1,257 +1,142 @@
-import fs from "fs";
-import path from "path";
-import { createPage } from "../notes/pages/page";
-import { createJournalEntry } from "../notes/journals/journal";
-import { loadConfig } from "../configuration/config";
-import { updateFrontmatterUpdatedAt } from "../notes/base/frontmatter";
+import fs from 'fs';
+import path from 'path';
+import matter from 'gray-matter';
+import { NoteMetadata } from '../api/files'; // Assuming NoteMetadata is exported from files.ts
 
-const config = loadConfig();
-const workspace = config.workspace;
-const TAGS_JSON_PATH = path.join(workspace, ".ygg", "tags.json");
+export type TagsData = {
+  [tagName: string]: string[]; // tagName -> list of file paths
+};
 
-export function syncTags() {
-    const markdownFiles = findMarkdownFiles(workspace);
-    const tagsDir = path.join(workspace, ".ygg");
+const TAG_REGEX = /#([a-zA-Z0-9_-]+)/g;
 
-    const tagMap: Record<string, { pages: string[], path: string }> = fs.existsSync(TAGS_JSON_PATH)
-        ? JSON.parse(fs.readFileSync(TAGS_JSON_PATH, "utf8"))
-        : {};
+/**
+ * Extracts all tags from both the frontmatter and the markdown content.
+ * @param fileContent The entire markdown file content.
+ * @returns A unique array of tag names (without the #).
+ */
+export function extractTagsFromContent(fileContent: string): string[] {
+  const { data: frontmatter, content: bodyContent } = matter(fileContent);
 
-    const seenTags = new Set<string>();
-    const fileToTagsMap: Record<string, string[]> = {};
+  // 1. Get tags from frontmatter
+  const frontmatterTags = frontmatter.tags || [];
+  if (!Array.isArray(frontmatterTags)) {
+    console.warn('Frontmatter "tags" is not an array, skipping.');
+    frontmatterTags.length = 0; // Treat as empty
+  }
 
-    // Erste Phase: Tags sammeln und verarbeiten
-    for (const file of markdownFiles) {
-        const relPath = path.relative(workspace, file).replace(/\\/g, "/");
-        const oldContent = fs.readFileSync(file, "utf8");
-        const rendered = renderWithLinkedTags(oldContent, file);
+  // 2. Get tags from body content
+  const bodyTags = [];
+  const matches = bodyContent.match(TAG_REGEX);
+  if (matches) {
+    bodyTags.push(...matches.map(tag => tag.substring(1)));
+  }
 
-        if (rendered !== oldContent) {
-            const updated = updateFrontmatterUpdatedAt(rendered);
-            fs.writeFileSync(file, updated, "utf8");
-        }
-
-        const content = fs.readFileSync(file, "utf8");
-        const tags = extractAllTags(content);
-
-        fileToTagsMap[relPath] = tags;
-
-        for (const tag of tags) {
-            seenTags.add(tag);
-            const isDate = /^\d{4}-\d{2}-\d{2}$/.test(tag);
-            const targetDir = isDate ? "journals" : "pages";
-            const tagFilePath = `${targetDir}/${tag}.md`;
-
-            if (!tagMap[tag]) {
-                tagMap[tag] = { pages: [], path: tagFilePath };
-
-                if (isDate) {
-                    createJournalEntry(tag);
-                } else {
-                    createPage(tag, targetDir);
-                }
-            }
-
-            if (!tagMap[tag].pages.includes(relPath)) {
-                tagMap[tag].pages.push(relPath);
-            }
-        }
-    }
-
-    // Aktualisiere tagMap: Entferne Tags ohne Referenzen und ohne existierende Datei
-    for (const tag in tagMap) {
-        const tagFilePath = path.join(workspace, tagMap[tag].path);
-
-        // Entferne nicht mehr referenzierte Seiten aus der pages-Liste
-        tagMap[tag].pages = tagMap[tag].pages.filter(page => {
-            const tagsInFile = fileToTagsMap[page] || [];
-            return tagsInFile.includes(tag);
-        });
-
-        const hasReferences = tagMap[tag].pages.length > 0 || seenTags.has(tag);
-
-        // Entferne den Tag, wenn keine Referenzen mehr existieren und die Datei gelöscht wurde
-        if (!hasReferences && !fs.existsSync(tagFilePath)) {
-            delete tagMap[tag];
-        }
-    }
-
-    // Zweite Phase: Page References zu allen Seiten hinzufügen
-    updatePageReferences(tagMap);
-
-    fs.mkdirSync(tagsDir, { recursive: true });
-    fs.writeFileSync(TAGS_JSON_PATH, JSON.stringify(tagMap, null, 2), "utf8");
-    console.log("Tags synchronisiert, verlinkt und Page References aktualisiert.");
+  // 3. Combine and return unique tags
+  return [...new Set([...frontmatterTags, ...bodyTags])];
 }
 
-function updatePageReferences(tagMap: Record<string, { pages: string[], path: string }>) {
-    // Für jede Tag-Datei die Page References hinzufügen
-    for (const [tagName, tagData] of Object.entries(tagMap)) {
-        const tagFilePath = path.join(workspace, tagData.path);
-        
-        if (!fs.existsSync(tagFilePath)) {
-            continue;
-        }
-
-        const content = fs.readFileSync(tagFilePath, "utf8");
-        const updatedContent = addPageReferencesSection(content, tagData.pages, tagFilePath);
-        
-        if (updatedContent !== content) {
-            const finalContent = updateFrontmatterUpdatedAt(updatedContent);
-            fs.writeFileSync(tagFilePath, finalContent, "utf8");
-        }
-    }
+function getTagsDbPath(notesDirectory: string): string {
+  return path.join(notesDirectory, '.mimirlink', 'tags.json');
 }
 
-function addPageReferencesSection(content: string, referencingPages: string[], currentFilePath: string): string {
-    // Entferne existierende Page References Sektion
-    const pageReferencesRegex = /\n## Page references\n[\s\S]*?(?=\n##|\n---|\n$|$)/;
-    let cleanContent = content.replace(pageReferencesRegex, "");
-    
-    // Entferne trailing whitespace am Ende
-    cleanContent = cleanContent.replace(/\s+$/, "");
-    
-    if (referencingPages.length === 0) {
-        return cleanContent;
-    }
-
-    // Ermittle den Tag-Namen aus dem aktuellen Datei-Pfad
-    const currentTagName = path.basename(currentFilePath, ".md");
-
-    // Erstelle die Page References Sektion
-    let pageReferencesSection = "\n\n## Page references\n\n";
-    
-    for (const referencingPage of referencingPages) {
-        // Berechne relativen Pfad von der aktuellen Tag-Datei zur referenzierenden Seite
-        const relativePath = path.relative(
-            path.dirname(currentFilePath), 
-            path.join(workspace, referencingPage)
-        ).replace(/\\/g, "/");
-        
-        // Extrahiere den Dateinamen ohne .md Extension für den Link-Text
-        const fileName = path.basename(referencingPage, ".md");
-        
-        pageReferencesSection += `- [${fileName}](./${relativePath})\n`;
-        
-        // Füge Preview-Text hinzu
-        const previewText = extractTagContext(path.join(workspace, referencingPage), currentTagName);
-        if (previewText) {
-            pageReferencesSection += `  *${previewText}*\n`;
-        }
-        pageReferencesSection += "\n";
-    }
-    
-    return cleanContent + pageReferencesSection;
+/**
+ * Writes the tags data to the tags.json file.
+ * @param notesDirectory The root directory for notes.
+ * @param data The tags data to write.
+ */
+export function writeTags(notesDirectory: string, data: TagsData): void {
+  const dbPath = getTagsDbPath(notesDirectory);
+  try {
+    // Sort tags alphabetically for consistency
+    const sortedData = Object.keys(data).sort().reduce((acc, key) => {
+      // Sort file paths for each tag
+      acc[key] = [...new Set(data[key])].sort();
+      return acc;
+    }, {} as TagsData);
+    fs.writeFileSync(dbPath, JSON.stringify(sortedData, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error writing tags.json:', error);
+  }
 }
 
-function findMarkdownFiles(dir: string): string[] {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    return entries.flatMap(entry => {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory() && entry.name !== ".ygg") {
-            return findMarkdownFiles(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith(".md")) {
-            return [fullPath];
-        } else {
-            return [];
+/**
+ * Rebuilds the entire tags.json from all markdown files.
+ * @param notesDirectory The root directory for notes.
+ * @param allNotes An array of all note metadata.
+ * @returns The newly built tags data.
+ */
+export function rebuildTagsFromMarkdown(notesDirectory: string, allNotes: NoteMetadata[]): TagsData {
+  console.log('Rebuilding tags.json from all markdown files...');
+  const newTagsData: TagsData = {};
+
+  for (const note of allNotes) {
+    const absolutePath = path.join(notesDirectory, note.path);
+    try {
+      const content = fs.readFileSync(absolutePath, 'utf-8');
+      const tags = extractTagsFromContent(content);
+      for (const tag of tags) {
+        if (!newTagsData[tag]) {
+          newTagsData[tag] = [];
         }
-    });
+        newTagsData[tag].push(note.path);
+      }
+    } catch (e) {
+      console.warn(`Could not read or parse ${absolutePath} during tags rebuild.`, e);
+    }
+  }
+
+  writeTags(notesDirectory, newTagsData);
+  console.log(`Tags rebuild complete. Found ${Object.keys(newTagsData).length} unique tags.`);
+  return newTagsData;
 }
 
-function extractAllTags(content: string): string[] {
-    const tagMatches = [...content.matchAll(/(^|\s)#([a-zA-Z0-9-_]+)/g)];
-    const linkMatches = [...content.matchAll(/\[#([a-zA-Z0-9-_]+)\]\(.*?\)/g)];
-    return [...new Set([...tagMatches.map(m => m[2]), ...linkMatches.map(m => m[1])])];
+/**
+ * Reads the tags.json file.
+ * If the file doesn't exist, it triggers a rebuild.
+ * @param notesDirectory The root directory for notes.
+ * @param allNotes All note metadata, required for a potential rebuild.
+ * @returns The tags data.
+ */
+export function readTags(notesDirectory: string, allNotes: NoteMetadata[]): TagsData {
+  const dbPath = getTagsDbPath(notesDirectory);
+  if (!fs.existsSync(dbPath)) {
+    return rebuildTagsFromMarkdown(notesDirectory, allNotes);
+  }
+  try {
+    const content = fs.readFileSync(dbPath, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error('Error reading tags.json, attempting rebuild:', error);
+    return rebuildTagsFromMarkdown(notesDirectory, allNotes);
+  }
 }
 
-export function renderWithLinkedTags(content: string, filePath: string): string {
-    const codeBlocks: [number, number][] = [];
-    const regexCode = /```[\s\S]*?```/g;
-    let match;
+/**
+ * Updates the tags database for a single file.
+ * @param notesDirectory The root directory for notes.
+ * @param filePath The relative path of the file that was changed.
+ * @param newTags The new list of tags for that file.
+ * @param allNotes All note metadata, required for a potential rebuild.
+ */
+export function updateTagsForFile(notesDirectory: string, filePath: string, newTags: string[], allNotes: NoteMetadata[]): void {
+  const tagsData = readTags(notesDirectory, allNotes);
 
-    while ((match = regexCode.exec(content)) !== null) {
-        codeBlocks.push([match.index, regexCode.lastIndex]);
+  // Step 1: Remove all old references to this file path
+  for (const tagName in tagsData) {
+    tagsData[tagName] = tagsData[tagName].filter(p => p !== filePath);
+    // Clean up tags that no longer have any files
+    if (tagsData[tagName].length === 0) {
+      delete tagsData[tagName];
     }
+  }
 
-    const existingLinks = new Set<number>();
-    const linkPattern = /\[#([a-zA-Z0-9-_]+)\]\((.*?)\)/g;
-    while ((match = linkPattern.exec(content)) !== null) {
-        existingLinks.add(match.index);
+  // Step 2: Add the new references
+  for (const tag of newTags) {
+    if (!tagsData[tag]) {
+      tagsData[tag] = [];
     }
+    tagsData[tag].push(filePath);
+  }
 
-    return content.replace(/(^|\s)(#[a-zA-Z0-9-_]+)/g, (fullMatch, leadingSpace, tag, offset) => {
-        if (
-            codeBlocks.some(([start, end]) => offset >= start && offset < end) ||
-            existingLinks.has(offset)
-        ) {
-            return fullMatch; // Tag nicht ersetzen
-        }
-
-        const tagName = tag.substring(1);
-        const isDate = /^\d{4}-\d{2}-\d{2}$/.test(tagName);
-        const targetDir = isDate ? "journals" : "pages";
-        const relativePath = path.relative(path.dirname(filePath), path.join(workspace, targetDir, `${tagName}.md`)).replace(/\\/g, "/");
-
-        return `${leadingSpace}[${tag}](./${relativePath})`;
-    });
-}
-
-function extractTagContext(filePath: string, tagName: string): string {
-    if (!fs.existsSync(filePath)) {
-        return "";
-    }
-
-    const content = fs.readFileSync(filePath, "utf8");
-    
-    // Suche nach dem Tag (sowohl #tag als auch [#tag](...) Format)
-    const tagPatterns = [
-        new RegExp(`(^|\\s)(#${tagName})(?=\\s|$)`, 'gi'),
-        new RegExp(`\\[#${tagName}\\]\\([^)]*\\)`, 'gi')
-    ];
-    
-    let bestMatch: { start: number, end: number } | null = null;
-    
-    for (const pattern of tagPatterns) {
-        const matches = [...content.matchAll(pattern)];
-        if (matches.length > 0) {
-            const match = matches[0];
-            bestMatch = { 
-                start: match.index!, 
-                end: match.index! + match[0].length 
-            };
-            break;
-        }
-    }
-    
-    if (!bestMatch) {
-        return "";
-    }
-    
-    // Finde den Anfang und das Ende des Satzes/Absatzes
-    const beforeTag = content.substring(0, bestMatch.start);
-    const afterTag = content.substring(bestMatch.end);
-    
-    // Suche rückwärts nach Satzanfang (Absatz, Punkt, oder Zeilenanfang)
-    const sentenceStartMatch = beforeTag.match(/.*[.\n]([^.\n]*)$/s);
-    const sentenceStart = sentenceStartMatch ? sentenceStartMatch[1] : beforeTag.split('\n').pop() || "";
-    
-    // Suche vorwärts nach Satzende (Punkt, Zeilenende, oder nächster Absatz)
-    const sentenceEndMatch = afterTag.match(/^([^.\n]*[.\n]?)/s);
-    const sentenceEnd = sentenceEndMatch ? sentenceEndMatch[1] : "";
-    
-    // Kombiniere den Kontext
-    let context = (sentenceStart + content.substring(bestMatch.start, bestMatch.end) + sentenceEnd).trim();
-    
-    // Bereinige den Kontext
-    context = context
-        .replace(/\n+/g, ' ')  // Ersetze Zeilenumbrüche durch Leerzeichen
-        .replace(/\s+/g, ' ')  // Normalisiere Leerzeichen
-        .trim();
-    
-    // Kürze wenn zu lang (max. 150 Zeichen)
-    if (context.length > 150) {
-        context = context.substring(0, 147) + "...";
-    }
-    
-    return context;
+  writeTags(notesDirectory, tagsData);
 }

@@ -4,6 +4,12 @@ import { format } from 'date-fns';
 
 // --- 1. Typ-Definitionen ---
 
+export interface Command {
+  id: string;
+  name: string;
+  action: () => void;
+}
+
 export interface NoteMetadata {
   path: string;
   title: string;
@@ -75,12 +81,16 @@ async function createNoteOnServer(title: string, type: 'page' | 'journal'): Prom
   return response.json();
 }
 
-async function updateServerFile(path: string, content: string): Promise<Response> {
-  return fetch(`${API_BASE_URL}/files/update`, {
+async function updateServerFile(path: string, content: string): Promise<{ createdNotes?: NoteMetadata[] }> {
+  const response = await fetch(`${API_BASE_URL}/files/update`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path, content }),
   });
+  if (!response.ok) {
+    throw new Error(`Server error: ${response.statusText}`);
+  }
+  return response.json();
 }
 
 async function deleteServerFile(path: string): Promise<Response> {
@@ -91,9 +101,24 @@ async function deleteServerFile(path: string): Promise<Response> {
   });
 }
 
+async function fetchBacklinks(path: string): Promise<NoteMetadata[]> {
+  if (!path) return [];
+  const response = await fetch(`${API_BASE_URL}/backlinks?path=${encodeURIComponent(path)}`);
+  if (!response.ok) {
+    console.error(`Failed to fetch backlinks: ${response.statusText}`);
+    return [];
+  }
+  return response.json();
+}
+
 // --- 3. Store-Erstellung ---
 
 function createNoteStore() {
+  // --- Command Palette State ---
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = createSignal(false);
+  const [filteredCommands, setFilteredCommands] = createSignal<Command[]>([]);
+  const [selectedCommandIndex, setSelectedCommandIndex] = createSignal(0);
+
   // --- Dialog State ---
   const [isNewPageDialogOpen, setIsNewPageDialogOpen] = createSignal(false);
 
@@ -108,10 +133,13 @@ function createNoteStore() {
   const [searchQuery, setSearchQuery] = createSignal('');
   const [searchResults] = createResource(searchQuery, searchFiles);
 
+  // --- Backlinks State ---
+  const [backlinks] = createResource(activeNotePath, fetchBacklinks);
+
   // --- Derived State (Memos) ---
   const activeNote = createMemo(() => openNotes().find(note => note.path === activeNotePath()));
   const activeContent = createMemo(() => activeNote()?.content ?? '');
-  const isSearching = createMemo(() => searchQuery().length > 0);
+  const isSearching = createMemo(() => searchQuery().length > 0 && !searchQuery().startsWith('>'));
 
   // --- Sidebar View State ---
   type SidebarView = 'files' | 'search';
@@ -124,13 +152,29 @@ function createNoteStore() {
     }
   });
 
-  // --- Aktionen ---
-  const performSearch = (query: string) => setSearchQuery(query);
+  // --- Actions ---
+
+  const allCommands: Command[] = [
+    { id: 'newPage', name: 'New Page', action: () => createNewPage() },
+    { id: 'todayJournal', name: 'Today\'s Journal', action: () => openOrCreateJournalForToday() },
+    { id: 'saveFile', name: 'Save File', action: () => saveCurrentNote() },
+  ];
+
+  const performSearch = (query: string) => {
+    if (query.startsWith('>')) {
+      setIsCommandPaletteOpen(true);
+      const commandQuery = query.substring(1).toLowerCase();
+      setFilteredCommands(
+        allCommands.filter(cmd => cmd.name.toLowerCase().includes(commandQuery))
+      );
+      setSelectedCommandIndex(0);
+    } else {
+      setIsCommandPaletteOpen(false);
+      setSearchQuery(query);
+    }
+  };
 
   const openNote = async (path: string) => {
-    // Save the currently active note before opening a new one
-    await saveNote(activeNote());
-
     if (openNotes().find(note => note.path === path)) {
       setActiveNotePath(path);
       return;
@@ -178,11 +222,13 @@ function createNoteStore() {
   const saveNote = async (noteToSave: Note | undefined | null) => {
     if (noteToSave && noteToSave.hasUnsavedChanges) {
       try {
-        await updateServerFile(noteToSave.path, noteToSave.content);
+        const { createdNotes } = await updateServerFile(noteToSave.path, noteToSave.content);
         setOpenNotes(prev => prev.map(n =>
           n.path === noteToSave.path ? { ...n, hasUnsavedChanges: false } : n
         ));
-        // No need to refetch files on every save, only on create/delete
+        if (createdNotes && createdNotes.length > 0) {
+          await refetchFiles();
+        }
       } catch (error) {
         console.error(`Failed to save note to server:`, error);
       }
@@ -193,10 +239,35 @@ function createNoteStore() {
     await saveNote(activeNote());
   };
 
+  const openWikiLink = async (linkContent: string) => {
+    // First, save the current note to not lose any context
+    await saveCurrentNote();
+
+    const cleanLinkContent = linkContent.trim();
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (dateRegex.test(cleanLinkContent)) {
+      // It's a journal link
+      await openOrCreateJournalForDate(cleanLinkContent);
+    } else {
+      // It's a page link
+      const allPages = files()?.pages ?? [];
+      const existingPage = allPages.find(p => p.title.toLowerCase() === cleanLinkContent.toLowerCase());
+
+      if (existingPage) {
+        // Page exists, open it
+        await openNote(existingPage.path);
+      } else {
+        // Page does not exist, trigger creation process
+        await confirmCreateNewPage(cleanLinkContent);
+      }
+    }
+  };
+
   const createNewPage = () => {
     setIsNewPageDialogOpen(true);
   };
-
+  
   const confirmCreateNewPage = async (title: string) => {
     if (!title) return;
     try {
@@ -208,8 +279,7 @@ function createNoteStore() {
     }
   };
 
-  const openOrCreateJournalForToday = async () => {
-    const dateStr = format(new Date(), 'yyyy-MM-dd');
+  const openOrCreateJournalForDate = async (dateStr: string) => {
     const journalPath = `journals/${dateStr}.md`;
 
     if (openNotes().find(note => note.path === journalPath)) {
@@ -224,12 +294,17 @@ function createNoteStore() {
     }
 
     try {
-      const { path } = await createNoteOnServer(`Journal for ${dateStr}`, 'journal');
+      const { path } = await createNoteOnServer(`Journal ${dateStr}`, 'journal');
       await refetchFiles();
       await openNote(path);
     } catch (error) {
-      console.error('Failed to create or open journal:', error);
+      console.error(`Failed to create or open journal for date ${dateStr}:`, error);
     }
+  };
+
+  const openOrCreateJournalForToday = async () => {
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    await openOrCreateJournalForDate(dateStr);
   };
 
   const deleteNote = async (path: string) => {
@@ -248,6 +323,17 @@ function createNoteStore() {
     }
   };
 
+  const executeSelectedCommand = async () => {
+    if (isCommandPaletteOpen() && filteredCommands().length > 0) {
+      const command = filteredCommands()[selectedCommandIndex()];
+      if (command) {
+        console.log('Executing command:', command.name);
+        await command.action(); // Await the async action
+        setIsCommandPaletteOpen(false);
+      }
+    }
+  };
+
   const initialize = async () => {
     const lastPath = await getKeyValue('last-opened-path');
     if (typeof lastPath === 'string') await openNote(lastPath);
@@ -263,6 +349,10 @@ function createNoteStore() {
     searchQuery,
     searchResults,
     isNewPageDialogOpen,
+    isCommandPaletteOpen,
+    filteredCommands,
+    selectedCommandIndex,
+    backlinks,
     // Actions
     refetchFiles,
     openNote,
@@ -273,6 +363,10 @@ function createNoteStore() {
     createNewPage,
     confirmCreateNewPage,
     setIsNewPageDialogOpen,
+    setIsCommandPaletteOpen,
+    setSelectedCommandIndex,
+    executeSelectedCommand,
+    openWikiLink,
     openOrCreateJournalForToday,
     saveCurrentNote,
     performSearch,

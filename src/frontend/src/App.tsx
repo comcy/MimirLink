@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from 'solid-js';
+import { createEffect, createSignal, Show, onCleanup } from 'solid-js';
 import { Calendar } from './components/Calendar';
 import { DatePicker } from './components/DatePicker';
 import { FileList } from './components/FileList';
@@ -9,6 +9,7 @@ import { ApplicationMenuBar } from './components/ApplicationMenuBar';
 import { SearchResults } from './components/SearchResults';
 import { WelcomePage } from './components/WelcomePage';
 import { NewPageDialog } from './components/NewPageDialog'; // Import the new dialog
+import { BacklinksDisplay } from './components/BacklinksDisplay';
 import { useTheme } from './components/ThemeContext';
 import { store } from './store';
 import styles from './App.module.scss';
@@ -112,6 +113,7 @@ function App() {
                 setValue={store.updateActiveContent}
                 onShowDatePicker={showDatePicker}
               />
+              <BacklinksDisplay backlinks={store.backlinks} />
             </Show>
             <Show when={isDatePickerVisible()}>
               <DatePicker

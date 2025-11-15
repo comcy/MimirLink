@@ -8,13 +8,19 @@ export interface MimirlinkConfig {
   // The directory where notes (journals, pages) are actually stored
   notesDirectory: string;
   port: number;
+  watcher?: {
+    enabled: boolean;
+  };
   // Add other configuration properties as needed
 }
 
 const DEFAULT_CONFIG: MimirlinkConfig = {
   workspace: process.cwd(), // Default to current working directory
-  notesDirectory: path.join(process.cwd(), 'notes'), // Default to 'notes' subdirectory
+  notesDirectory: path.join(process.cwd(), 'docs', 'samples'), // Default to 'docs/samples' subdirectory
   port: 3001, // Default port for the server
+  watcher: {
+    enabled: true,
+  },
 };
 
 // Function to load a single config file
@@ -65,7 +71,11 @@ export function loadConfiguration(): MimirlinkConfig {
     const userConfigPath = path.join(os.homedir(), '.mimirlink', 'mimirlink.config.json');
     const userConfig = loadConfigFile(userConfigPath);
     if (userConfig) {
-      config = { ...config, ...userConfig };
+      const { watcher: userWatcher, ...restOfUserConfig } = userConfig;
+      config = { ...config, ...restOfUserConfig };
+      if (userWatcher) {
+        config.watcher = { ...config.watcher, ...userWatcher };
+      }
     } else {
       // If user config doesn't exist, create a default one
       const userConfigDir = path.dirname(userConfigPath);
@@ -88,11 +98,14 @@ export function loadConfiguration(): MimirlinkConfig {
         // Continue with default config if user config creation fails
       }
     }
-
     // 3. Load Project-specific config (mimirlink.config.json in CWD or parent)
     const projectConfig = findProjectConfig();
     if (projectConfig) {
-      config = { ...config, ...projectConfig };
+      const { watcher: projectWatcher, ...restOfProjectConfig } = projectConfig;
+      config = { ...config, ...restOfProjectConfig };
+      if (projectWatcher) {
+        config.watcher = { ...config.watcher, ...projectWatcher };
+      }
     }
 
     // 4. Apply Environment Variables (e.g., MIMIRLINK_PORT, MIMIRLINK_NOTES_DIRECTORY)

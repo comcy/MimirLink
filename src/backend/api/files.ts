@@ -3,12 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { format } from 'date-fns';
+import { extractTagsFromContent, readTags, updateTagsForFile } from '../synchronisation/tags.js';
+import { buildReferenceIndex, writeReferenceIndex } from '../synchronisation/references.js';
+import { extractMetadataFromContent, readMetadata, writeMetadata, NoteType, slugify, extractWikiLinks } from '../synchronisation/metadata.js';
 
 // --- Types ---
-type NoteType = 'journal' | 'page';
-
-interface NoteMetadata {
-  path: string; // Relative path to the markdown file from notesDirectory
+export interface NoteMetadata {
+  path: string;
   title: string;
   date: string;
   type: NoteType;
@@ -17,85 +18,13 @@ interface NoteMetadata {
 
 // --- Utility Functions ---
 
-function slugify(text: string): string {
-  return text.toString().toLowerCase().trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
-}
-
-function extractMetadataFromContent(relativePath: string, content: string): NoteMetadata {
-  const { data: frontmatter } = matter(content);
-  return {
-    path: relativePath.replace(/\\/g, '/'),
-    title: frontmatter.title || 'Untitled',
-    date: frontmatter.date || new Date().toISOString(),
-    type: frontmatter.pageType || 'page',
-    tags: frontmatter.tags || [],
-  };
-}
-
-// --- Core Metadata Logic ---
-
-function getMetadataDbPath(notesDirectory: string, type: NoteType): string {
-  return path.join(notesDirectory, '.mimirlink', `${type}s.json`);
-}
-
-function writeMetadata(notesDirectory: string, type: NoteType, data: NoteMetadata[]): void {
-  const dbPath = getMetadataDbPath(notesDirectory, type);
+// --- Helper for Indexing ---
+function updateReferenceIndex(notesDirectory: string) {
   try {
-    data.sort((a, b) => a.path.localeCompare(b.path));
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf-8');
+    const index = buildReferenceIndex(notesDirectory);
+    writeReferenceIndex(notesDirectory, index);
   } catch (error) {
-    console.error(`Error writing metadata for ${type}:`, error);
-  }
-}
-
-/**
- * Scans the markdown files in a directory and rebuilds the metadata for them.
- */
-function rebuildMetadataFromMarkdown(notesDirectory: string, type: NoteType): NoteMetadata[] {
-  console.log(`Rebuilding metadata for type: ${type}`);
-  const metadata: NoteMetadata[] = [];
-  const targetDir = path.join(notesDirectory, `${type}s`);
-
-  if (!fs.existsSync(targetDir)) {
-    return [];
-  }
-
-  const files = fs.readdirSync(targetDir);
-  for (const file of files) {
-    if (path.extname(file) === '.md') {
-      const absolutePath = path.join(targetDir, file);
-      const relativePath = path.join(`${type}s`, file);
-      try {
-        const content = fs.readFileSync(absolutePath, 'utf-8');
-        const noteMetadata = extractMetadataFromContent(relativePath, content);
-        metadata.push(noteMetadata);
-      } catch (e) {
-        console.warn(`Could not read or parse ${absolutePath} during rebuild.`, e);
-      }
-    }
-  }
-
-  writeMetadata(notesDirectory, type, metadata);
-  console.log(`Rebuild complete for ${type}. Found ${metadata.length} notes.`);
-  return metadata;
-}
-
-function readMetadata(notesDirectory: string, type: NoteType): NoteMetadata[] {
-  const dbPath = getMetadataDbPath(notesDirectory, type);
-  if (!fs.existsSync(dbPath)) {
-    // If DB file doesn't exist, rebuild it from the markdown files
-    return rebuildMetadataFromMarkdown(notesDirectory, type);
-  }
-  try {
-    const content = fs.readFileSync(dbPath, 'utf-8');
-    return JSON.parse(content);
-  } catch (error) {
-    console.error(`Error reading metadata for ${type}, attempting rebuild:`, error);
-    // If parsing fails, it might be corrupt, so rebuild
-    return rebuildMetadataFromMarkdown(notesDirectory, type);
+    console.error('Failed to update reference index:', error);
   }
 }
 
@@ -104,18 +33,71 @@ function readMetadata(notesDirectory: string, type: NoteType): NoteMetadata[] {
 export function createFilesRouter(notesDirectory: string): Router {
   const router = Router();
 
-  // GET /api/files - List all notes
+  const findOrCreateNote = (linkContent: string, typeOverride?: NoteType): NoteMetadata | null => {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const isDateLink = dateRegex.test(linkContent);
+    const type: NoteType = typeOverride || (isDateLink ? 'journal' : 'page');
+
+    let relativePath: string;
+    let title: string;
+    let existingNote: NoteMetadata | undefined;
+
+    if (type === 'journal') {
+      title = `Journal ${linkContent}`;
+      relativePath = path.join('journals', `${linkContent}.md`).replace(/\\/g, '/');
+      existingNote = readMetadata(notesDirectory, 'journal').find(j => j.path === relativePath);
+    } else {
+      title = linkContent;
+      existingNote = readMetadata(notesDirectory, 'page').find(p => p.title.toLowerCase() === title.toLowerCase());
+      if (existingNote) {
+        relativePath = existingNote.path;
+      } else {
+        const slug = slugify(linkContent);
+        relativePath = path.join('pages', `${slug}.md`).replace(/\\/g, '/');
+      }
+    }
+
+    const absolutePath = path.join(notesDirectory, relativePath);
+    if (fs.existsSync(absolutePath)) {
+      return existingNote || extractMetadataFromContent(relativePath, fs.readFileSync(absolutePath, 'utf-8'));
+    }
+
+    const date = isDateLink ? linkContent : format(new Date(), 'yyyy-MM-dd');
+    const content = `---
+title: ${title}
+date: ${date}
+pageType: ${type}
+tags: []
+---
+
+# ${title}
+
+`;
+
+    try {
+      fs.writeFileSync(absolutePath, content, 'utf-8');
+      const newMetadata = extractMetadataFromContent(relativePath, content);
+      const allMetadata = readMetadata(notesDirectory, type);
+      allMetadata.push(newMetadata);
+      writeMetadata(notesDirectory, type, allMetadata);
+      const tags = extractTagsFromContent(content);
+      const allNotesForTags = [...readMetadata(notesDirectory, 'journal'), ...readMetadata(notesDirectory, 'page')];
+      updateTagsForFile(notesDirectory, relativePath, tags, allNotesForTags);
+      console.log(`Auto-created note: ${relativePath}`);
+      return newMetadata;
+    } catch (error) {
+      console.error(`Failed to auto-create file: ${absolutePath}`, error);
+      return null;
+    }
+  };
+
   router.get('/', (req, res) => {
     try {
       const journals = readMetadata(notesDirectory, 'journal');
       const pages = readMetadata(notesDirectory, 'page');
-
-      const allNotes = [...journals, ...pages];
-      allNotes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
       res.json({
-        journals: allNotes.filter(n => n.type === 'journal'),
-        pages: allNotes.filter(n => n.type === 'page'),
+        journals: journals.sort((a, b) => b.date.localeCompare(a.date)),
+        pages: pages.sort((a, b) => a.title.localeCompare(b.title)),
       });
     } catch (error) {
       console.error('Failed to get files:', error);
@@ -123,158 +105,108 @@ export function createFilesRouter(notesDirectory: string): Router {
     }
   });
 
-  // GET /api/files/content - Get content of a file
+  router.get('/tags', (req, res) => {
+    try {
+      const journals = readMetadata(notesDirectory, 'journal');
+      const pages = readMetadata(notesDirectory, 'page');
+      const allNotes = [...journals, ...pages];
+      const tagsData = readTags(notesDirectory, allNotes);
+      res.json(tagsData);
+    } catch (error) {
+      console.error('Failed to get tags:', error);
+      res.status(500).json({ error: 'Failed to get tags' });
+    }
+  });
+
   router.get('/content', (req, res) => {
     const filePath = req.query.path as string;
     if (!filePath) return res.status(400).json({ error: 'File path is required' });
-
     const absolutePath = path.join(notesDirectory, filePath);
     if (!absolutePath.startsWith(notesDirectory)) return res.status(403).json({ error: 'Forbidden' });
-
     try {
-      const content = fs.readFileSync(absolutePath, 'utf-8');
-      res.send(content);
+      res.send(fs.readFileSync(absolutePath, 'utf-8'));
     } catch (error) {
       res.status(404).json({ error: 'File not found' });
     }
   });
 
-  // POST /api/files/create - Create a new note
   router.post('/create', (req, res) => {
     const { title, type } = req.body as { title: string; type: NoteType };
-    if (!title || !type) {
-      return res.status(400).json({ error: 'Title and type are required' });
-    }
-
-    let relativePath: string;
-    let content: string;
-
-    if (type === 'journal') {
-      const dateStr = format(new Date(), 'yyyy-MM-dd');
-      relativePath = path.join('journals', `${dateStr}.md`).replace(/\\/g, '/');
-      content = `---
-title: Journal ${dateStr}
-date: ${dateStr}
-pageType: journal
-tags: []
----
-
-# Journal - ${dateStr}
-
-`;
-    } else { // type === 'page'
-      const slug = slugify(title);
-      relativePath = path.join('pages', `${slug}.md`).replace(/\\/g, '/');
-      content = `---
-title: ${title}
-date: ${format(new Date(), 'yyyy-MM-dd')}
-pageType: page
-tags: []
----
-
-# ${title}
-
-`;
-    }
-
-    const absolutePath = path.join(notesDirectory, relativePath);
-    if (fs.existsSync(absolutePath)) {
-      return res.status(409).json({ error: 'File already exists', path: relativePath });
-    }
-
-    try {
-      fs.writeFileSync(absolutePath, content, 'utf-8');
-
-      const newMetadata = extractMetadataFromContent(relativePath, content);
-      const allMetadata = readMetadata(notesDirectory, type);
-      allMetadata.push(newMetadata);
-      writeMetadata(notesDirectory, type, allMetadata);
-
-      res.status(201).json({ message: 'File created successfully', path: relativePath });
-    } catch (error) {
-      console.error(`Failed to create file: ${absolutePath}`, error);
-      res.status(500).json({ error: 'Failed to create file' });
+    if (!title || !type) return res.status(400).json({ error: 'Title and type are required' });
+    const linkContent = type === 'journal' ? format(new Date(), 'yyyy-MM-dd') : title;
+    const note = findOrCreateNote(linkContent, type);
+    if (note) {
+      updateReferenceIndex(notesDirectory); // Update index on create
+      res.status(201).json({ message: 'File created successfully', path: note.path });
+    } else {
+      res.status(409).json({ error: 'File already exists', path: '' });
     }
   });
 
-  // POST /api/files/update - Update an existing note
   router.post('/update', (req, res) => {
-    const { path: filePath, content } = req.body;
-    if (!filePath || content === undefined) {
-      return res.status(400).json({ error: 'File path and content are required' });
-    }
-
+    const { path: filePath, content: originalContent } = req.body;
+    if (!filePath || originalContent === undefined) return res.status(400).json({ error: 'File path and content are required' });
     const absolutePath = path.join(notesDirectory, filePath);
     if (!absolutePath.startsWith(notesDirectory)) return res.status(403).json({ error: 'Forbidden' });
-
     try {
-      fs.writeFileSync(absolutePath, content, 'utf-8');
-
-      const updatedMetadata = extractMetadataFromContent(filePath, content);
+      const allTags = extractTagsFromContent(originalContent);
+      const { data: frontmatter, content: bodyContent } = matter(originalContent);
+      frontmatter.tags = allTags.sort();
+      const newContent = matter.stringify(bodyContent, frontmatter);
+      fs.writeFileSync(absolutePath, newContent, 'utf-8');
+      const updatedMetadata = extractMetadataFromContent(filePath, newContent);
       const type = updatedMetadata.type;
       const allMetadata = readMetadata(notesDirectory, type);
       const noteIndex = allMetadata.findIndex(note => note.path === filePath);
-
-      if (noteIndex !== -1) {
-        allMetadata[noteIndex] = updatedMetadata;
-      } else {
-        allMetadata.push(updatedMetadata);
-      }
-
+      if (noteIndex !== -1) allMetadata[noteIndex] = updatedMetadata;
+      else allMetadata.push(updatedMetadata);
       writeMetadata(notesDirectory, type, allMetadata);
-
-      res.status(200).json({ message: 'File updated successfully' });
-    } catch (error) {
-      console.error(`Failed to update file: ${absolutePath}`, error);
-      res.status(500).json({ error: 'Failed to update file' });
-    }
+            const allNotesForTags = [...readMetadata(notesDirectory, 'journal'), ...readMetadata(notesDirectory, 'page')];
+            updateTagsForFile(notesDirectory, filePath, allTags, allNotesForTags);
+            const linkedPages = extractWikiLinks(newContent);
+            const createdNotes: NoteMetadata[] = [];
+            for (const link of linkedPages) {
+              const note = findOrCreateNote(link);
+              if (note) {
+                createdNotes.push(note);
+              }
+            }
+            
+            // After all file operations, update the reference index
+            updateReferenceIndex(notesDirectory);
+      
+            res.status(200).json({ message: 'File updated successfully', createdNotes });
+          } catch (error) {
+            console.error(`Failed to update file: ${absolutePath}`, error);
+            res.status(500).json({ error: 'Failed to update file' });
+          }
   });
 
-  // GET /api/files/search - Search all notes
   router.get('/search', (req, res) => {
     const query = req.query.q as string;
-
     try {
       const journals = readMetadata(notesDirectory, 'journal');
       const pages = readMetadata(notesDirectory, 'page');
-      let allNotes = [...journals, ...pages];
-
+      const allNotes = [...journals, ...pages];
       let searchResults = [];
-      if (query) { // Only filter if there's a query
+      if (query) {
         const lowerCaseQuery = query.toLowerCase();
-
         for (const note of allNotes) {
           const absolutePath = path.join(notesDirectory, note.path);
           try {
             const content = fs.readFileSync(absolutePath, 'utf-8');
-            const lines = content.split('\n');
-
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              if (line.toLowerCase().includes(lowerCaseQuery)) {
-                searchResults.push({
-                  path: note.path,
-                  title: note.title,
-                  context: line.trim(),
-                });
-                // Take only the first match per file to keep results concise
-                break;
-              }
+            if (content.toLowerCase().includes(lowerCaseQuery)) {
+              searchResults.push({ path: note.path, title: note.title, context: content.substring(0, 200) });
             }
-          } catch (e) {
-            // Ignore files that can't be read
-            console.warn(`Could not read file ${note.path} during search.`, e);
-          }
+          } catch (e) { console.warn(`Could not read file ${note.path} during search.`, e); }
         }
-      } else { // If query is empty, return all notes, sorted by date
+      } else {
         searchResults = allNotes.map(note => ({
           path: note.path,
           title: note.title,
           context: "No search query - showing all notes",
-        }));
-        searchResults.sort((a, b) => new Date(b.path).getTime() - new Date(a.path).getTime());
+        })).sort((a, b) => new Date(b.path).getTime() - new Date(a.path).getTime());
       }
-
       res.json(searchResults);
     } catch (error) {
       console.error('Failed to perform search:', error);
@@ -282,40 +214,22 @@ tags: []
     }
   });
 
-  // DELETE /api/files - Delete a note
   router.delete('/', (req, res) => {
     const { path: filePath } = req.body;
-    if (!filePath) {
-      return res.status(400).json({ error: 'File path is required' });
-    }
-
+    if (!filePath) return res.status(400).json({ error: 'File path is required' });
     const absolutePath = path.join(notesDirectory, filePath);
-    if (!absolutePath.startsWith(notesDirectory)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
+    if (!absolutePath.startsWith(notesDirectory)) return res.status(403).json({ error: 'Forbidden' });
     try {
-      // 1. Delete the markdown file
-      if (fs.existsSync(absolutePath)) {
-        fs.unlinkSync(absolutePath);
-      }
-
-      // 2. Delete the old sidecar .json file if it exists (cleanup)
+      if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
       const sidecarJsonPath = absolutePath.replace(/\.md$/, '.json');
-      if (fs.existsSync(sidecarJsonPath)) {
-        fs.unlinkSync(sidecarJsonPath);
-      }
-
-      // 3. Remove the entry from the central metadata file
+      if (fs.existsSync(sidecarJsonPath)) fs.unlinkSync(sidecarJsonPath);
       const type = filePath.startsWith('journals') ? 'journal' : 'page';
       const allMetadata = readMetadata(notesDirectory, type);
       const updatedMetadata = allMetadata.filter(note => note.path !== filePath);
-
-      // Write back only if changes were made
-      if (updatedMetadata.length < allMetadata.length) {
-        writeMetadata(notesDirectory, type, updatedMetadata);
-      }
-
+      if (updatedMetadata.length < allMetadata.length) writeMetadata(notesDirectory, type, updatedMetadata);
+      const allNotes = [...readMetadata(notesDirectory, 'journal'), ...readMetadata(notesDirectory, 'page')];
+      updateTagsForFile(notesDirectory, filePath, [], allNotes);
+      updateReferenceIndex(notesDirectory); // Update index on delete
       res.status(200).json({ message: 'File deleted successfully' });
     } catch (error) {
       console.error(`Failed to delete file: ${absolutePath}`, error);

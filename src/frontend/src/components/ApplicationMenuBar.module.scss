@@ -24,21 +24,20 @@
   flex-grow: 1;
   display: flex;
   justify-content: center;
+  position: relative; /* For command palette positioning */
 }
 
 .searchInput {
   width: 100%;
   max-width: 400px;
   padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  border: 1px solid var(--color-border);
   background-color: var(--bg-color);
   color: var(--text-color);
-  font-size: 0.9rem;
 
   &:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-focus);
   }
 }
