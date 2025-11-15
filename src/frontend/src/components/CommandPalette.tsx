@@ -1,9 +1,9 @@
 import { For, Show } from 'solid-js';
-import { store } from '../store';
+import { store, type Command } from '../store';
 import styles from './CommandPalette.module.scss';
 
 export function CommandPalette() {
-  const executeCommand = (command: typeof store.filteredCommands[number]) => {
+  const executeCommand = (command: Command) => {
     command.action();
     store.setIsCommandPaletteOpen(false);
   };

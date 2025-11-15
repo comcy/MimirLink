@@ -1,5 +1,5 @@
 import { createSignal, createResource, createMemo, createRoot, createEffect } from 'solid-js';
-import { getNote, setNote, getKeyValue, setKeyValue } from './db';
+import { setNote, getKeyValue, setKeyValue } from './db';
 import { format } from 'date-fns';
 
 // --- 1. Typ-Definitionen ---
@@ -38,7 +38,7 @@ export interface SearchResult {
 
 // --- 2. API-Funktionen ---
 
-const API_BASE_URL = 'http://localhost:3001/api';
+export const API_BASE_URL = 'http://localhost:3001/api';
 
 async function fetchFiles(): Promise<CategorizedFiles> {
   try {

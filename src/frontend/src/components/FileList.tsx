@@ -81,7 +81,7 @@ export function FileList() {
       >
         <Show
           when={!store.files.error}
-          fallback={<div className={styles.error}>Error: {store.files.error.message}</div>}
+          fallback={<div class={styles.error}>Error: {store.files.error.message}</div>}
         >
           <FileSection
             title="Journals"

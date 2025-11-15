@@ -3,9 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { format } from 'date-fns';
+import multer from 'multer';
 import { extractTagsFromContent, readTags, updateTagsForFile } from '../synchronisation/tags.js';
 import { buildReferenceIndex, writeReferenceIndex } from '../synchronisation/references.js';
 import { extractMetadataFromContent, readMetadata, writeMetadata, NoteType, slugify, extractWikiLinks } from '../synchronisation/metadata.js';
+import { readImageMetadata, writeImageMetadata } from '../synchronisation/images.js';
 
 // --- Types ---
 export interface NoteMetadata {
@@ -32,6 +34,16 @@ function updateReferenceIndex(notesDirectory: string) {
 
 export function createFilesRouter(notesDirectory: string): Router {
   const router = Router();
+
+  console.log('Creating files router with notesDirectory:', notesDirectory);
+  const assetsDirectory = path.join(notesDirectory, 'assets');
+  console.log('Assets directory:', assetsDirectory);
+
+  if (!fs.existsSync(assetsDirectory)) {
+    fs.mkdirSync(assetsDirectory, { recursive: true });
+  }
+
+  const upload = multer({ storage: multer.memoryStorage() });
 
   const findOrCreateNote = (linkContent: string, typeOverride?: NoteType): NoteMetadata | null => {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -102,6 +114,41 @@ tags: []
     } catch (error) {
       console.error('Failed to get files:', error);
       res.status(500).json({ error: 'Failed to get files' });
+    }
+  });
+
+  router.post('/upload', upload.single('image'), (req, res) => {
+    console.log('Upload endpoint hit.');
+    console.log('Request file object:', req.file);
+    console.log('Request body:', req.body);
+
+    if (!req.file || !req.file.buffer) {
+      console.error('Multer did not process the file into a buffer.');
+      return res.status(400).json({ error: 'No file uploaded or multer processing failed.' });
+    }
+
+    try {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const filename = req.file.fieldname + '-' + uniqueSuffix + path.extname(req.file.originalname);
+      const absolutePath = path.join(assetsDirectory, filename);
+      
+      fs.writeFileSync(absolutePath, req.file.buffer);
+
+      const imagePath = path.join('assets', filename).replace(/\\/g, '/');
+      console.log(`File saved successfully. Path: ${imagePath}, Size: ${req.file.size}`);
+
+      const metadata = readImageMetadata(notesDirectory);
+      metadata.push({
+        path: imagePath,
+        filename: filename,
+        createdAt: new Date().toISOString(),
+      });
+      writeImageMetadata(notesDirectory, metadata);
+
+      res.status(200).json({ path: imagePath });
+    } catch (error) {
+      console.error('Error saving file to disk:', error);
+      res.status(500).json({ error: 'Failed to save file.' });
     }
   });
 

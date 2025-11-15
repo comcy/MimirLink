@@ -55,10 +55,6 @@ function App() {
     setDatePickerVisible(false);
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!isSidebarOpen());
-  };
-
   const handleFileIconClick = () => {
     if (!isSidebarOpen()) {
       store.setActiveSidebarView('files');

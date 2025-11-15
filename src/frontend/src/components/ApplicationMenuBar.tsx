@@ -3,7 +3,6 @@ import { DropdownMenu } from './DropdownMenu';
 import { CommandPalette } from './CommandPalette';
 import styles from './ApplicationMenuBar.module.scss';
 import menuItemStyles from './DropdownMenu.module.scss';
-import logo from '/logo.png';
 import type { Setter } from 'solid-js';
 
 interface ApplicationMenuBarProps {

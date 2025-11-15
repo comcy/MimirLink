@@ -1,4 +1,4 @@
-import { For, onMount, createSignal } from 'solid-js';
+import { For, onMount, Show } from 'solid-js';
 import { store } from '../store';
 import styles from './MenuBar.module.scss';
 
@@ -33,8 +33,6 @@ export function MenuBar() {
     <div class={styles.menuBar} ref={menuBarRef}>
       <For each={store.openNotes()}>
         {(note) => {
-          const [isHovered, setIsHovered] = createSignal(false);
-
           return (
             <div
               class={styles.tab}

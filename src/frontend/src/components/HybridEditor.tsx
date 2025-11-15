@@ -9,16 +9,17 @@ import { EditorState, Range, Annotation } from "@codemirror/state";
 import { Decoration, EditorView, keymap, lineNumbers, ViewUpdate, WidgetType } from "@codemirror/view";
 import dayjs from "dayjs";
 import { createEffect, onCleanup, onMount } from "solid-js";
-import type { Accessor, Setter } from "solid-js";
-import { store } from "../store";
+import type { Accessor } from "solid-js";
+import { store, API_BASE_URL } from "../store";
 import "./editor-styles.css";
 
 const loadContentAnnotation = Annotation.define<string>();
 const WIKILINK_REGEX = /\[\[(.*?)\]\]/g;
+const IMAGE_REGEX = /!\[(.*?)\]\((.*?)\)/g;
 
 interface HybridEditorProps {
   value: Accessor<string>;
-  setValue: Setter<string>;
+  setValue: (value: string) => void;
   onShowDatePicker: (pos: { top: number, left: number }, callback: (date: string) => void) => void;
 }
 
@@ -35,6 +36,21 @@ const emojiMap: { [key: string]: string } = {
 };
 
 // --- Widgets ---
+
+class ImageWidget extends WidgetType {
+  url: string;
+  constructor(url: string) {
+    super();
+    this.url = url;
+  }
+
+  toDOM() {
+    const img = document.createElement("img");
+    img.src = this.url;
+    img.className = "cm-image";
+    return img;
+  }
+}
 
 class BulletWidget extends WidgetType {
   toDOM() {
@@ -98,6 +114,28 @@ class IconWidget extends WidgetType {
 }
 
 // --- Plugins ---
+
+function imagePlugin() {
+  return EditorView.decorations.of((view) => {
+    const builder: Range<Decoration>[] = [];
+    for (const { from, to } of view.visibleRanges) {
+      const text = view.state.doc.sliceString(from, to);
+      for (const match of text.matchAll(IMAGE_REGEX)) {
+        const start = from + match.index!;
+        const end = start + match[0].length;
+        const url = match[2];
+        if (url.startsWith('assets/')) {
+          builder.push(
+            Decoration.replace({
+              widget: new ImageWidget(`${API_BASE_URL.replace('/api', '')}/${url}`),
+            }).range(start, end)
+          );
+        }
+      }
+    }
+    return Decoration.set(builder);
+  });
+}
 
 function wikiLinkPlugin() {
   return EditorView.decorations.of((view) => {
@@ -464,9 +502,49 @@ export function HybridEditor(props: HybridEditorProps) {
           unifiedDecorationPlugin(),
           iconEmojiPlugin(),
           wikiLinkPlugin(), // Moved to after other decoration plugins
+          imagePlugin(),
           autocompletion({ override: [slashCommands] }),
           datePickerPlugin(props.onShowDatePicker),
           EditorView.domEventHandlers({
+            paste: (event, view) => {
+              event.preventDefault(); // Always prevent default paste behavior
+              
+              navigator.clipboard.read().then(items => {
+                for (const item of items) {
+                  if (item.types.some(type => type.startsWith('image/'))) {
+                    const imageType = item.types.find(type => type.startsWith('image/'))!;
+                    item.getType(imageType).then(blob => {
+                      const file = new File([blob], "pasted-image.png", { type: imageType });
+                      console.log('Pasted file object from new API:', file);
+
+                      const formData = new FormData();
+                      formData.append('image', file);
+
+                      fetch(`${API_BASE_URL}/files/upload`, {
+                        method: 'POST',
+                        body: formData,
+                      })
+                        .then(response => response.json())
+                        .then(data => {
+                          if (data.path) {
+                            const markdown = `![pasted image](${data.path})`;
+                            view.dispatch({
+                              changes: { from: view.state.selection.main.head, insert: markdown }
+                            });
+                          }
+                        })
+                        .catch(error => {
+                          console.error('Error uploading image:', error);
+                        });
+                    });
+                    return; // Handle first image found
+                  }
+                }
+              }).catch(err => {
+                console.error('Failed to read clipboard contents: ', err);
+                // Fallback or error message can be added here
+              });
+            },
             mousedown: (event, view) => {
               const target = event.target as HTMLElement;
               const linkElement = target.closest('.cm-wikilink');

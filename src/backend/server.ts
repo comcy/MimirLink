@@ -38,11 +38,19 @@ async function main() {
     app.use(cors());
     app.use(express.json());
 
+    // Serve static files from the notes directory (including assets)
+    app.use(express.static(config.notesDirectory));
+
     app.get('/api/health', (req, res) => {
       res.json({ status: 'ok', workspace: config.workspace, notesDirectory: config.notesDirectory, port: config.port });
     });
 
-    app.use('/api/files', createFilesRouter(config.notesDirectory));
+    app.use('/api/files', (req, res, next) => {
+      if (req.path === '/upload') {
+        console.log('Raw headers for /api/files/upload:', req.headers);
+      }
+      next();
+    }, createFilesRouter(config.notesDirectory));
     app.use('/api/backlinks', createReferencesRouter(config.notesDirectory));
 
     app.listen(port, () => {

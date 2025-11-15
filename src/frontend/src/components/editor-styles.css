@@ -224,3 +224,10 @@
 .dark .cm-inline-code {
   background-color: #2d3748;
 }
+
+.cm-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+}
