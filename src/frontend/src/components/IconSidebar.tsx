@@ -5,6 +5,8 @@ import styles from './IconSidebar.module.scss';
 interface IconSidebarProps {
   onFileIconClick: () => void;
   onSearchIconClick: () => void;
+  onTagIconClick: () => void;
+  onTaskIconClick: () => void;
 }
 
 export function IconSidebar(props: IconSidebarProps) {
@@ -30,6 +32,24 @@ export function IconSidebar(props: IconSidebarProps) {
         >
           {/* Search Icon SVG */}
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+        <button
+          class={styles.iconButton}
+          classList={{ [styles.activeIcon]: store.activeSidebarView() === 'tags' }}
+          onClick={props.onTagIconClick}
+          aria-label="Tags"
+        >
+          {/* Tag Icon SVG (#) */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+        </button>
+        <button
+          class={styles.iconButton}
+          classList={{ [styles.activeIcon]: store.activeSidebarView() === 'tasks' }}
+          onClick={props.onTaskIconClick}
+          aria-label="Tasks"
+        >
+          {/* Task Icon SVG (Checkbox) */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
         </button>
       </div>
       <div class={styles.bottomIcons}>

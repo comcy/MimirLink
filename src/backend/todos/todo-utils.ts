@@ -1,43 +1,48 @@
-export function extractTodoMetadata(line: string): Partial<Todo> {
-  let content = line.replace(/^\s*- \[[ xX]\] /, "").trim();
+import fs from 'fs';
+import path from 'path';
+import { Task } from './todo';
 
-  let dueDate: string | undefined;
-  let priority: string | undefined;
-  let scope: string | undefined;
+const TASKS_JSON = 'tasks.json';
+const DONE_TASKS_JSON = 'done_tasks.json';
 
-  const inlineMatches = content.match(/\[(due|priority|scope):([^\]]+)\]/g);
-  if (inlineMatches) {
-    for (const match of inlineMatches) {
-      const [, key, value] = match.match(/\[(due|priority|scope):([^\]]+)\]/)!;
-      if (key === "due") dueDate = value.trim();
-      if (key === "priority") priority = value.trim().toLowerCase();
-      if (key === "scope") scope = value.trim();
-    }
-    content = content.replace(/\[(due|priority|scope):([^\]]+)\]/g, "").trim();
+function getTasksFilePath(notesDirectory: string): string {
+  return path.join(notesDirectory, '.mimirlink', TASKS_JSON);
+}
+
+function getDoneTasksFilePath(notesDirectory: string): string {
+  return path.join(notesDirectory, '.mimirlink', DONE_TASKS_JSON);
+}
+
+export function readTasks(notesDirectory: string): Task[] {
+  const filePath = getTasksFilePath(notesDirectory);
+  if (!fs.existsSync(filePath)) {
+    return [];
   }
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(content);
+}
 
-  if (!dueDate && content.includes("📅")) {
-    const match = content.match(/📅\s*(\d{4}-\d{2}-\d{2})/);
-    if (match) dueDate = match[1];
-    content = content.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
+export function writeTasks(notesDirectory: string, tasks: Task[]): void {
+  const filePath = getTasksFilePath(notesDirectory);
+  fs.writeFileSync(filePath, JSON.stringify(tasks, null, 2), 'utf-8');
+}
+
+export function readDoneTasks(notesDirectory: string): Task[] {
+  const filePath = getDoneTasksFilePath(notesDirectory);
+  if (!fs.existsSync(filePath)) {
+    return [];
   }
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(content);
+}
 
-  if (!priority) {
-    if (content.includes("🔴")) priority = "high";
-    else if (content.includes("🟡")) priority = "medium";
-    else if (content.includes("🟢")) priority = "low";
-    content = content.replace(/[🔴🟡🟢]/g, "").trim();
-  }
+export function writeDoneTasks(notesDirectory: string, tasks: Task[]): void {
+  const filePath = getDoneTasksFilePath(notesDirectory);
+  fs.writeFileSync(filePath, JSON.stringify(tasks, null, 2), 'utf-8');
+}
 
-  if (!scope && content.includes("🗂️")) {
-    const match = content.match(/🗂️\s*(\w+)/);
-    if (match) scope = match[1];
-    content = content.replace(/🗂️\s*\w+/, "").trim();
-  }
-
-  if (!content.startsWith("\"") && content.includes(" ")) {
-    content = `"${content}"`;
-  }
-
-  return { content, dueDate, priority, scope };
+export function addDoneTask(notesDirectory: string, task: Task): void {
+  const doneTasks = readDoneTasks(notesDirectory);
+  doneTasks.push(task);
+  writeDoneTasks(notesDirectory, doneTasks);
 }

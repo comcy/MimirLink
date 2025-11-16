@@ -5,8 +5,10 @@ import path from 'path';
 import { AppConfig } from './config/index';
 import { createFilesRouter } from './api/files';
 import { createReferencesRouter } from './api/references';
+import { createTodosRouter } from './api/todos';
 import { initializeWatcher } from './watcher/watch';
 import { buildReferenceIndex, writeReferenceIndex } from './synchronisation/references';
+import { synchronizeTasks } from './synchronisation/tasks';
 
 async function main() {
   try {
@@ -28,8 +30,12 @@ async function main() {
       const index = buildReferenceIndex(config.notesDirectory);
       writeReferenceIndex(config.notesDirectory, index);
       console.log('Reference indexing complete.');
+
+      console.log('Performing initial task synchronization...');
+      synchronizeTasks(config.notesDirectory);
+      console.log('Task synchronization complete.');
     } catch (error) {
-      console.error('Failed to perform initial reference indexing:', error);
+      console.error('Failed to perform initial indexing or synchronization:', error);
     }
 
     const app = express();
@@ -52,18 +58,11 @@ async function main() {
       next();
     }, createFilesRouter(config.notesDirectory));
     app.use('/api/backlinks', createReferencesRouter(config.notesDirectory));
+    app.use('/api/todos', createTodosRouter(config.notesDirectory));
 
     app.listen(port, () => {
       console.log(`Mimirlink server listening on http://localhost:${port}`);
     });
-
-    // Initialize the watcher if enabled in config
-    if (config.watcher?.enabled) {
-      console.log('Watcher is enabled, initializing...');
-      initializeWatcher(config.notesDirectory);
-    } else {
-      console.log('Watcher is disabled in config.');
-    }
 
   } catch (error) {
     console.error('Failed to start Mimirlink server:');

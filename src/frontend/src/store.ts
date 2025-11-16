@@ -36,9 +36,35 @@ export interface SearchResult {
   context: string;
 }
 
+export interface Task {
+  id: string;
+  instanceId?: string;
+  description: string;
+  completed: boolean;
+  filePath: string;
+  lineNumber: number;
+  dueDate?: string;
+  plannedDate?: string;
+  recurrence?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface CategorizedTasks {
+  open: Task[];
+  done: Task[];
+}
+
+
 // --- 2. API-Funktionen ---
 
 export const API_BASE_URL = 'http://localhost:3001/api';
+
+async function fetchTasks(): Promise<CategorizedTasks> {
+  const response = await fetch(`${API_BASE_URL}/todos`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return response.json();
+}
 
 async function fetchFiles(): Promise<CategorizedFiles> {
   try {
@@ -79,6 +105,12 @@ async function createNoteOnServer(title: string, type: 'page' | 'journal'): Prom
     throw new Error(errorData.error || `Server error: ${response.statusText}`);
   }
   return response.json();
+}
+
+async function synchronizeTasksOnServer(): Promise<Response> {
+  return fetch(`${API_BASE_URL}/todos/synchronize`, {
+    method: 'POST',
+  });
 }
 
 async function updateServerFile(path: string, content: string): Promise<{ createdNotes?: NoteMetadata[] }> {
@@ -129,6 +161,11 @@ function createNoteStore() {
   const [openNotes, setOpenNotes] = createSignal<Note[]>([]);
   const [activeNotePath, setActiveNotePath] = createSignal<string | null>(null);
 
+  // --- Task State ---
+  const [tasks, { refetch: refetchTasks }] = createResource<CategorizedTasks>(fetchTasks, {
+    initialValue: { open: [], done: [] },
+  });
+
   // --- Search State ---
   const [searchQuery, setSearchQuery] = createSignal('');
   const [searchResults] = createResource(searchQuery, searchFiles);
@@ -142,7 +179,7 @@ function createNoteStore() {
   const isSearching = createMemo(() => searchQuery().length > 0 && !searchQuery().startsWith('>'));
 
   // --- Sidebar View State ---
-  type SidebarView = 'files' | 'search';
+  type SidebarView = 'files' | 'search' | 'tags' | 'tasks';
   const [activeSidebarView, setActiveSidebarView] = createSignal<SidebarView>('files');
 
   // Automatically switch to search view when a search is performed
@@ -226,17 +263,42 @@ function createNoteStore() {
         setOpenNotes(prev => prev.map(n =>
           n.path === noteToSave.path ? { ...n, hasUnsavedChanges: false } : n
         ));
+        
+        // After saving, tell the backend to re-scan all files for tasks
+        await synchronizeTasksOnServer();
+        
+        // Now, refetch the updated task and file lists
+        await refetchTasks();
         if (createdNotes && createdNotes.length > 0) {
           await refetchFiles();
         }
+
       } catch (error) {
-        console.error(`Failed to save note to server:`, error);
+        console.error(`Failed to save note and synchronize tasks:`, error);
       }
     }
   };
 
   const saveCurrentNote = async () => {
     await saveNote(activeNote());
+  };
+
+  const toggleTaskCompletion = async (task: Task) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/todos/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task),
+      });
+      if (!response.ok) throw new Error('Failed to complete task on server.');
+
+      // After completing, always synchronize and refetch
+      await synchronizeTasksOnServer();
+      await refetchTasks();
+
+    } catch (error) {
+      console.error('Failed to toggle task completion:', error);
+    }
   };
 
   const openWikiLink = async (linkContent: string) => {
@@ -353,8 +415,10 @@ function createNoteStore() {
     filteredCommands,
     selectedCommandIndex,
     backlinks,
+    tasks,
     // Actions
     refetchFiles,
+    refetchTasks,
     openNote,
     closeNote,
     deleteNote,
@@ -370,6 +434,7 @@ function createNoteStore() {
     openOrCreateJournalForToday,
     saveCurrentNote,
     performSearch,
+    toggleTaskCompletion,
     // Computed
     activeNote,
     activeContent,

@@ -7,6 +7,8 @@ import { IconSidebar } from './components/IconSidebar';
 import { MenuBar } from './components/MenuBar';
 import { ApplicationMenuBar } from './components/ApplicationMenuBar';
 import { SearchResults } from './components/SearchResults';
+import { TagsDisplay } from './components/TagsDisplay';
+import { TasksDisplay } from './components/TasksDisplay';
 import { WelcomePage } from './components/WelcomePage';
 import { NewPageDialog } from './components/NewPageDialog'; // Import the new dialog
 import { BacklinksDisplay } from './components/BacklinksDisplay';
@@ -55,28 +57,15 @@ function App() {
     setDatePickerVisible(false);
   };
 
-  const handleFileIconClick = () => {
+  const handleSidebarIconClick = (view: 'files' | 'search' | 'tags' | 'tasks') => {
     if (!isSidebarOpen()) {
-      store.setActiveSidebarView('files');
+      store.setActiveSidebarView(view);
       setSidebarOpen(true);
     } else {
-      if (store.activeSidebarView() === 'files') {
+      if (store.activeSidebarView() === view) {
         setSidebarOpen(false);
       } else {
-        store.setActiveSidebarView('files');
-      }
-    }
-  };
-
-  const handleSearchIconClick = () => {
-    if (!isSidebarOpen()) {
-      store.setActiveSidebarView('search');
-      setSidebarOpen(true);
-    } else {
-      if (store.activeSidebarView() === 'search') {
-        setSidebarOpen(false);
-      } else {
-        store.setActiveSidebarView('search');
+        store.setActiveSidebarView(view);
       }
     }
   };
@@ -88,14 +77,28 @@ function App() {
         <Show when={isSidebarOpen()}>
           <div class={styles.backdrop} onClick={() => setSidebarOpen(false)} />
         </Show>
-        <IconSidebar onFileIconClick={handleFileIconClick} onSearchIconClick={handleSearchIconClick} />
+        <IconSidebar 
+          onFileIconClick={() => handleSidebarIconClick('files')} 
+          onSearchIconClick={() => handleSidebarIconClick('search')}
+          onTagIconClick={() => handleSidebarIconClick('tags')}
+          onTaskIconClick={() => handleSidebarIconClick('tasks')}
+        />
         <div class={styles.sidebarContainer} classList={{ [styles.closed]: !isSidebarOpen() }}>
           <button class={styles.sidebarCloseButton} onClick={() => setSidebarOpen(false)}>
             &times;
           </button>
-          <Show when={store.activeSidebarView() === 'files'} fallback={<SearchResults />}>
+          <Show when={store.activeSidebarView() === 'files'}>
             <Calendar />
             <FileList />
+          </Show>
+          <Show when={store.activeSidebarView() === 'search'}>
+            <SearchResults />
+          </Show>
+          <Show when={store.activeSidebarView() === 'tags'}>
+            <TagsDisplay />
+          </Show>
+          <Show when={store.activeSidebarView() === 'tasks'}>
+            <TasksDisplay />
           </Show>
         </div>
         <div class={styles.contentContainer}>
