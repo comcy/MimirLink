@@ -46,6 +46,7 @@ export interface Task {
   dueDate?: string;
   plannedDate?: string;
   recurrence?: string;
+  endDate?: string;
   createdAt: string;
   completedAt?: string;
 }

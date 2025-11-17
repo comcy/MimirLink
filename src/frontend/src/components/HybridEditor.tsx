@@ -507,43 +507,43 @@ export function HybridEditor(props: HybridEditorProps) {
           datePickerPlugin(props.onShowDatePicker),
           EditorView.domEventHandlers({
             paste: (event, view) => {
-              event.preventDefault(); // Always prevent default paste behavior
-              
-              navigator.clipboard.read().then(items => {
-                for (const item of items) {
-                  if (item.types.some(type => type.startsWith('image/'))) {
-                    const imageType = item.types.find(type => type.startsWith('image/'))!;
-                    item.getType(imageType).then(blob => {
-                      const file = new File([blob], "pasted-image.png", { type: imageType });
-                      console.log('Pasted file object from new API:', file);
+              const items = event.clipboardData?.items;
+              if (!items) return;
 
-                      const formData = new FormData();
-                      formData.append('image', file);
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.startsWith('image/')) {
+                  event.preventDefault();
+                  const file = item.getAsFile();
+                  if (!file) continue;
 
-                      fetch(`${API_BASE_URL}/files/upload`, {
-                        method: 'POST',
-                        body: formData,
-                      })
-                        .then(response => response.json())
-                        .then(data => {
-                          if (data.path) {
-                            const markdown = `![pasted image](${data.path})`;
-                            view.dispatch({
-                              changes: { from: view.state.selection.main.head, insert: markdown }
-                            });
-                          }
-                        })
-                        .catch(error => {
-                          console.error('Error uploading image:', error);
+                  const formData = new FormData();
+                  formData.append('image', file);
+
+                  fetch(`${API_BASE_URL}/files/upload`, {
+                    method: 'POST',
+                    body: formData,
+                  })
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.path) {
+                        const markdown = `![pasted image](${data.path})`;
+                        view.dispatch({
+                          changes: { from: view.state.selection.main.head, insert: markdown }
                         });
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error uploading image:', error);
                     });
-                    return; // Handle first image found
-                  }
+                  
+                  return; // Handle first image found
                 }
-              }).catch(err => {
-                console.error('Failed to read clipboard contents: ', err);
-                // Fallback or error message can be added here
-              });
+              }
+
+              // If no image was pasted, handle text pasting.
+              // The default paste behavior will handle this if we don't call preventDefault.
+              // We only preventDefault for images.
             },
             mousedown: (event, view) => {
               const target = event.target as HTMLElement;

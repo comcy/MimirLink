@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { loadConfig } from "../configuration/config";
+import { AppConfig } from "../config";
 
 const YOUTUBE_URL_REGEX = /https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/g;
-const config = loadConfig();
+const config = AppConfig;
 const workspace = config.workspace; 
 
 export function youtubeLinkRewriter() {

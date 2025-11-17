@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { formatISO, isBefore, startOfYesterday, parseISO } from 'date-fns';
+import { formatISO, isBefore, startOfYesterday, parseISO, isAfter } from 'date-fns';
 import { extractTasksFromContent, Task } from '../todos/todo';
 import { readDoneTasks, writeTasks } from '../todos/todo-utils';
 import { getNextOccurrence, RecurrenceRule } from '../todos/date-utils';
@@ -48,8 +48,14 @@ export function synchronizeTasks(notesDirectory: string): void {
         .filter(t => t.id === task.id)
         .sort((a, b) => parseISO(b.completedAt!).getTime() - parseISO(a.completedAt!).getTime())[0];
 
-      const fromDate = lastCompleted ? parseISO(lastCompleted.completedAt!) : startOfYesterday();
+      const fromDate = lastCompleted ? parseISO(lastCompleted.dueDate!) : startOfYesterday();
       const nextDueDate = getNextOccurrence(task.recurrence as RecurrenceRule, fromDate);
+
+      // If there's an end date, don't create tasks past that date.
+      if (task.endDate && isAfter(nextDueDate, parseISO(task.endDate))) {
+        continue; // Stop generating occurrences for this task
+      }
+
       const nextInstanceId = `${task.id}-${formatISO(nextDueDate, { representation: 'date' })}`;
 
       // Only create a new open task if an instance for this next due date hasn't already been completed.

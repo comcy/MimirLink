@@ -71,3 +71,17 @@
 
 /* Define a blasser text color in your global variables if not already present */
 /* Example: --text-blasser: #888; */
+
+.showMoreButton {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0.25rem;
+  &:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+  }
+}

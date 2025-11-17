@@ -11,6 +11,9 @@ export interface MimirlinkConfig {
   watcher?: {
     enabled: boolean;
   };
+  editor?: {
+    command?: string;
+  };
   // Add other configuration properties as needed
 }
 

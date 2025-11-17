@@ -13,6 +13,7 @@ export interface Task {
   dueDate?: string;
   plannedDate?: string;
   recurrence?: string;
+  endDate?: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -22,10 +23,11 @@ type SortMethod = 'default' | 'dueDateAsc' | 'dueDateDesc' | 'plannedDateAsc' | 
 export function TasksDisplay() {
   const [filterQuery, setFilterQuery] = createSignal('');
   const [sortMethod, setSortMethod] = createSignal<SortMethod>('default');
+  const [showAllDone, setShowAllDone] = createSignal(false);
 
   const processedTasks = createMemo(() => {
     const allTasks = store.tasks();
-    if (!allTasks) return { open: [], done: [] };
+    if (!allTasks) return { open: [], recurring: [], done: [] };
 
     const query = filterQuery().toLowerCase();
 
@@ -34,7 +36,11 @@ export function TasksDisplay() {
     let openTasks = allTasks.open.filter(filterTask);
     let doneTasks = allTasks.done.filter(filterTask);
 
-    // 2. Sort tasks
+    // 2. Partition open tasks into recurring and non-recurring
+    const recurringTasks = openTasks.filter(task => task.recurrence);
+    const nonRecurringTasks = openTasks.filter(task => !task.recurrence);
+
+    // 3. Sort tasks
     const sortFn = (a: Task, b: Task) => {
       const method = sortMethod();
       if (method === 'default') return 0;
@@ -44,8 +50,8 @@ export function TasksDisplay() {
       const bDate = b[key];
 
       if (!aDate && !bDate) return 0;
-      if (!aDate) return 1; // Tasks without a date go to the end
-      if (!bDate) return -1; // Tasks without a date go to the end
+      if (!aDate) return 1;
+      if (!bDate) return -1;
 
       if (method.endsWith('Asc')) {
         return aDate.localeCompare(bDate);
@@ -53,12 +59,26 @@ export function TasksDisplay() {
         return bDate.localeCompare(aDate);
       }
     };
+    const sortedNonRecurring = nonRecurringTasks.slice().sort(sortFn);
+    const sortedRecurring = recurringTasks.slice().sort(sortFn);
 
-    openTasks = openTasks.slice().sort(sortFn);
-    // We typically don't sort done tasks, but we can if needed.
-    // doneTasks = doneTasks.slice().sort(sortFn);
+    // 4. Sort done tasks by completion date, newest first
+    doneTasks = doneTasks.slice().sort((a, b) => {
+      if (!a.completedAt && !b.completedAt) return 0;
+      if (!a.completedAt) return 1;
+      if (!b.completedAt) return -1;
+      return b.completedAt.localeCompare(a.completedAt);
+    });
 
-    return { open: openTasks, done: doneTasks };
+    return { open: sortedNonRecurring, recurring: sortedRecurring, done: doneTasks };
+  });
+
+  const displayedDoneTasks = createMemo(() => {
+    const allDone = processedTasks().done;
+    if (showAllDone() || allDone.length <= 5) {
+      return allDone;
+    }
+    return allDone.slice(0, 5);
   });
 
   return (
@@ -106,6 +126,9 @@ export function TasksDisplay() {
                   <Show when={task.recurrence}>
                     <span class={styles.recurrence}>🔁 {task.recurrence}</span>
                   </Show>
+                  <Show when={task.endDate}>
+                    <span class={styles.endDate}>🏁 {task.endDate}</span>
+                  </Show>
                 </div>
               </div>
             </div>
@@ -113,8 +136,8 @@ export function TasksDisplay() {
         </For>
       </div>
       <div class={styles.taskList}>
-        <h3>Done</h3>
-        <For each={processedTasks().done} fallback={<p>No matching completed tasks.</p>}>
+        <h3>Recurring</h3>
+        <For each={processedTasks().recurring} fallback={<p>No recurring tasks.</p>}>
           {(task) => (
             <div class={styles.taskItem}>
               <input 
@@ -134,11 +157,50 @@ export function TasksDisplay() {
                   <Show when={task.recurrence}>
                     <span class={styles.recurrence}>🔁 {task.recurrence}</span>
                   </Show>
+                  <Show when={task.endDate}>
+                    <span class={styles.endDate}>🏁 {task.endDate}</span>
+                  </Show>
                 </div>
               </div>
             </div>
           )}
         </For>
+      </div>
+      <div class={styles.taskList}>
+        <h3>Done</h3>
+        <For each={displayedDoneTasks()} fallback={<p>No matching completed tasks.</p>}>
+          {(task) => (
+            <div class={styles.taskItem}>
+              <input 
+                type="checkbox" 
+                checked={task.completed} 
+                onChange={() => store.toggleTaskCompletion(task)}
+              />
+              <div class={styles.taskDetails}>
+                <span class={styles.taskDescription}>{task.description}</span>
+                <div class={styles.taskMetadata}>
+                  <Show when={task.dueDate}>
+                    <span class={styles.dueDate}>📅 {task.dueDate}</span>
+                  </Show>
+                  <Show when={task.plannedDate}>
+                    <span class={styles.plannedDate}>🗓️ {task.plannedDate}</span>
+                  </Show>
+                  <Show when={task.recurrence}>
+                    <span class={styles.recurrence}>🔁 {task.recurrence}</span>
+                  </Show>
+                  <Show when={task.endDate}>
+                    <span class={styles.endDate}>🏁 {task.endDate}</span>
+                  </Show>
+                </div>
+              </div>
+            </div>
+          )}
+        </For>
+        <Show when={processedTasks().done.length > 5 && !showAllDone()}>
+          <button class={styles.showMoreButton} onClick={() => setShowAllDone(true)}>
+            ... (show {processedTasks().done.length - 5} more)
+          </button>
+        </Show>
       </div>
     </div>
   );

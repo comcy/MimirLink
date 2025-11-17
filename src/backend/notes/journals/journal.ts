@@ -1,11 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { loadConfig } from '../../configuration/config';
-import { generateFrontmatter } from '../base/frontmatter';
-
+import { AppConfig } from '../../config';
 
 export function createJournalEntry(date?: string): void {
-    const config = loadConfig();
+    const config = AppConfig;
     const workspace = config.workspace;
     const journalDate = date || new Date().toISOString().split('T')[0];
     const journalDir = path.join(workspace, 'journals');

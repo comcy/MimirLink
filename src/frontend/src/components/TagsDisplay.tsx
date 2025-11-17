@@ -1,5 +1,3 @@
-import { For } from 'solid-js';
-import { store } from '../store';
 import styles from './TagsDisplay.module.scss';
 
 export function TagsDisplay() {

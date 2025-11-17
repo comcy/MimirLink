@@ -3,7 +3,7 @@ import fs from "fs";
 import matter from "gray-matter";
 import { marked } from "marked";
 import path from "path";
-import { WORKSPACE } from "../configuration/config";
+import { AppConfig } from "../config";
 
 
 export async function startViewMode(port = 3000) {
@@ -11,10 +11,10 @@ export async function startViewMode(port = 3000) {
   const open = (await import("open")).default;
   const app: Express = express();
 
-  app.use("/static", express.static(WORKSPACE));
+  app.use("/static", express.static(AppConfig.workspace));
 
   app.get("/", (req: any, res: any) => {
-    const folders = fs.readdirSync(WORKSPACE, { withFileTypes: true })
+    const folders = fs.readdirSync(AppConfig.workspace, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => `<li><a href="/${entry.name}">${entry.name}</a></li>`)
       .join("");
@@ -24,7 +24,7 @@ export async function startViewMode(port = 3000) {
 
   app.get("/:type/:name", (req: any, res: any) => {
     const { type, name } = req.params;
-    const dirPath = path.join(WORKSPACE, type);
+    const dirPath = path.join(AppConfig.workspace, type);
     const filePath = path.join(dirPath, `${name}.md`);
     const subDirPath = path.join(dirPath, name);
   

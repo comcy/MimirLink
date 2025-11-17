@@ -11,6 +11,7 @@ export interface Task {
   dueDate?: string;
   plannedDate?: string;
   recurrence?: Recurrence;
+  endDate?: string;
   createdAt: string;
   completedAt?: string;
   // A unique ID for a specific instance of a recurring task
@@ -18,9 +19,10 @@ export interface Task {
 }
 
 const TASK_REGEX = /-\s*\[( |x)\]\s*(.*)/;
-const DUE_DATE_REGEX = /due:\[\[?(\d{4}-\d{2}-\d{2})\]\]?/;
-const PLANNED_DATE_REGEX = /planned:\[\[?(\d{4}-\d{2}-\d{2})\]\]?/;
+const DUE_DATE_REGEX = /due:(?:\[\[?)?(\d{4}-\d{2}-\d{2})(?:\]\]?)?/;
+const PLANNED_DATE_REGEX = /planned:(?:\[\[?)?(\d{4}-\d{2}-\d{2})(?:\]\]?)?/;
 const RECURRENCE_REGEX = /recurring:(\w+|\[[\w,\s]+\])/;
+const END_DATE_REGEX = /end:(?:\[\[?)?(\d{4}-\d{2}-\d{2})(?:\]\]?)?/;
 
 /**
  * Extracts all raw task definitions from a file's content.
@@ -39,6 +41,7 @@ export function extractTasksFromContent(content: string, filePath: string): Task
     let dueDate: string | undefined;
     let plannedDate: string | undefined;
     let recurrence: Recurrence | undefined;
+    let endDate: string | undefined;
 
     const dueDateMatch = description.match(DUE_DATE_REGEX);
     if (dueDateMatch) {
@@ -58,6 +61,12 @@ export function extractTasksFromContent(content: string, filePath: string): Task
       description = description.replace(recurrenceMatch[0], '').trim();
     }
 
+    const endDateMatch = description.match(END_DATE_REGEX);
+    if (endDateMatch) {
+      endDate = endDateMatch[1];
+      description = description.replace(endDateMatch[0], '').trim();
+    }
+
     const task: Task = {
       id: `${filePath}-${index}`,
       description: description.trim(),
@@ -67,6 +76,7 @@ export function extractTasksFromContent(content: string, filePath: string): Task
       dueDate: dueDate || (recurrence ? undefined : today), // Default due date for non-recurring tasks
       plannedDate,
       recurrence,
+      endDate,
       createdAt: new Date().toISOString(),
     };
 

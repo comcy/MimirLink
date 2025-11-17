@@ -4,15 +4,12 @@ import readline from "readline";
 import { createJournalEntry } from "../notes/journals/journal";
 import { createPage } from "../notes/pages/page";
 import { interactiveSearch } from "../search-interactive";
-import { syncTags } from "../synchronisation/tags";
 import { startViewMode } from "../viewer/view-server";
 import { startStaticSiteGeneration } from "../viewer/view-static";
-import { startWatchMode } from "../watcher/watch";
-import { syncImages } from "../synchronisation/images";
-import { syncTodos } from "../todos/todo";
+import { initializeWatcher } from "../watcher/watch";
 import { youtubeLinkRewriter } from "../utils/youtube-link-rewriter";
 import { getPackageVersion } from "../version/version";
-import { getConfig } from "../configuration/config";
+import { AppConfig } from "../config";
 import { replaceEmojisInAllMarkdownFiles } from "../utils/emoji-rewriter";
 
 
@@ -54,16 +51,16 @@ function processInput(input: string) {
     }
 
     else if (command === "sync") {
-        syncTags();
-        syncImages();
-        syncTodos(); // <-- diese Zeile ergänzt den Todo-Sync
+        // syncTags();
+        // syncImages();
+        synchronizeTasks(AppConfig.notesDirectory);
         youtubeLinkRewriter();
         replaceEmojisInAllMarkdownFiles();
         console.log("✅ Synchronisation abgeschlossen.");
     }
 
     else if (command === "watch") {
-        startWatchMode();
+        initializeWatcher();
     }
 
     else if (command === "view") {
@@ -83,7 +80,7 @@ function processInput(input: string) {
     }
   
     else if (command === "config") {
-        console.log(`Configuration: ${getConfig()}`);
+        console.log(`Configuration: ${JSON.stringify(AppConfig, null, 2)}`);
     }
 
     else {

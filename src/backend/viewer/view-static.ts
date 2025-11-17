@@ -2,11 +2,11 @@ import fs from "fs";
 import matter from "gray-matter";
 import { marked } from "marked";
 import path from "path";
-import { WORKSPACE } from "../configuration/config";
+import { AppConfig } from "../config";
 
-const outputDir = path.join(WORKSPACE, "public");
-const templatePath = path.join(WORKSPACE, ".ygg", "templates", "page.html");
-const stylePath = path.join(WORKSPACE, ".ygg", "styles", "style.css");
+const outputDir = path.join(AppConfig.workspace, "public");
+const templatePath = path.join(AppConfig.workspace, ".ygg", "templates", "page.html");
+const stylePath = path.join(AppConfig.workspace, ".ygg", "styles", "style.css");
 
 const template = fs.readFileSync(templatePath, "utf8");
 const customCSS = fs.readFileSync(stylePath, "utf8");
@@ -70,7 +70,7 @@ function renderMarkdownToHTML(inputPath: string, relDirPath: string, fileName: s
     ([key, value]) => `<div class="meta"><strong>${key}</strong>: ${value}</div>`
   ).join("");
 
-  const toc = buildTOC(path.join(WORKSPACE, relDirPath), relDirPath);
+  const toc = buildTOC(path.join(AppConfig.workspace, relDirPath), relDirPath);
   const breadcrumb = buildBreadcrumb(path.join(relDirPath, fileName.replace(/\.md$/, "")));
 
   const pageHtml = renderPage(
@@ -86,7 +86,7 @@ function renderMarkdownToHTML(inputPath: string, relDirPath: string, fileName: s
 }
 
 function renderDirectoryIndex(relDirPath: string) {
-  const absDir = path.join(WORKSPACE, relDirPath);
+  const absDir = path.join(AppConfig.workspace, relDirPath);
   const toc = buildTOC(absDir, relDirPath);
   const breadcrumb = buildBreadcrumb(relDirPath);
 
@@ -121,7 +121,7 @@ export function startStaticSiteGeneration() {
 
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
-  generateStaticSite(WORKSPACE, "");
+  generateStaticSite(AppConfig.workspace, "");
 
   console.log("✅ Statische Seiten generiert in:", outputDir);
 

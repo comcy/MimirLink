@@ -42,7 +42,13 @@ export function writeDoneTasks(notesDirectory: string, tasks: Task[]): void {
 }
 
 export function addDoneTask(notesDirectory: string, task: Task): void {
-  const doneTasks = readDoneTasks(notesDirectory);
+  let doneTasks = readDoneTasks(notesDirectory);
+
+  // If the completed task is a recurring one, remove any previous instances of it from the done list.
+  if (task.recurrence) {
+    doneTasks = doneTasks.filter(doneTask => doneTask.id !== task.id);
+  }
+
   doneTasks.push(task);
   writeDoneTasks(notesDirectory, doneTasks);
 }
