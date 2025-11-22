@@ -1,62 +1,20 @@
 {
-    "name": "mimirlink",
-    "version": "0.12.0",
-    "type": "module",
-    "description": "Backend server for Mimirlink",
-    "main": "dist/server.cjs",
-    "module": "dist/server.mjs",
-    "types": "dist/server.d.ts",
-    "exports": {
-        ".": {
-            "import": "./dist/server.mjs",
-            "require": "./dist/server.cjs"
-        }
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
-    "publishConfig": {
-        "access": "public"
-    },
-    "scripts": {
-        "init": "npm install",
-        "lint": "",
-        "test": "",
-        "build:tsc": "tsc",
-        "build": "tsup src/backend/server.ts --dts --format esm,cjs --out-dir dist",
-        "start": "node dist/server.js",
-        "dev": "tsx src/backend/server.ts",
-        "version": "changeset version",
-        "release": "changeset publish"
-    },
-    "devDependencies": {
-        "@changesets/cli": "^2.29.2",
-        "@types/cors": "^2.8.19",
-        "@types/express": "^5.0.5",
-        "@types/multer": "^2.0.0",
-        "@types/node": "^22.14.1",
-        "date-fns": "^4.1.0",
-        "multer": "^2.0.2",
-        "nodemon": "^3.1.9",
-        "ts-node": "^10.9.2",
-        "tsup": "^8.4.0",
-        "tsx": "^4.19.3",
-        "typescript": "^5.8.3",
-        "vite": "^6.3.2"
-    },
-    "dependencies": {
-        "@types/chalk": "^0.4.31",
-        "chalk": "^5.4.1",
-        "chokidar": "^4.0.3",
-        "cors": "^2.8.5",
-        "express": "^5.1.0",
-        "gray-matter": "^4.0.3",
-        "highlight": "^0.2.4",
-        "highlight.js": "^11.11.1",
-        "inquirer": "^12.5.2",
-        "marked": "^15.0.8",
-        "open": "^8.4.2",
-        "uuid": "^11.1.0"
-    }
+  "name": "mimirlink-monorepo",
+  "private": true,
+  "version": "0.12.0",
+  "workspaces": [
+    "src/frontend",
+    "src/backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=mimirlink",
+    "dev:backend": "npm run dev --workspace=mimirlink-backend",
+    "build:frontend": "npm run build --workspace=mimirlink",
+    "build:backend": "npm run build --workspace=mimirlink-backend",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.2"
+  }
 }
