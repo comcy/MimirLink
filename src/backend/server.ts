@@ -6,7 +6,6 @@ import { AppConfig } from './config/index';
 import { createFilesRouter } from './api/files';
 import { createReferencesRouter } from './api/references';
 import { createTodosRouter } from './api/todos';
-import { initializeWatcher } from './watcher/watch';
 import { buildReferenceIndex, writeReferenceIndex } from './synchronisation/references';
 import { synchronizeTasks } from './synchronisation/tasks';
 

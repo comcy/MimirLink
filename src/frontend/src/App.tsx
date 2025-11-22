@@ -98,6 +98,7 @@ function App() {
             <TagsDisplay />
           </Show>
           <Show when={store.activeSidebarView() === 'tasks'}>
+            <Calendar />
             <TasksDisplay />
           </Show>
         </div>

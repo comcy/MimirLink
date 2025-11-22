@@ -41,6 +41,7 @@
       padding: 0.25rem;
       border-radius: 9999px;
       cursor: pointer;
+      position: relative;
 
       &:hover {
         background-color: #dbeafe;
@@ -59,6 +60,37 @@
         opacity: 0.5;
         cursor: default;
       }
+
+      &.hasTasks::after {
+        content: '';
+        position: absolute;
+        bottom: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: var(--accent-color);
+      }
     }
   }
+}
+
+.popover {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--color-background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 0.8rem;
+  max-width: 300px;
+}
+
+.popoverTask {
+  padding: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -16,6 +16,7 @@ body {
   --color-background-secondary: var(--bg-color-sidebar); /* Define secondary background color */
   --light-theme-bg: #ffffff;
   --dark-theme-bg: #1a202c;
+  --accent-color: #3b82f6; /* blue-500 */
 }
 
 body.dark {
@@ -30,6 +31,7 @@ body.dark {
   --color-background-secondary: var(--bg-color-sidebar); /* Define secondary background color */
   --light-theme-bg: #ffffff;
   --dark-theme-bg: #1a202c;
+  --accent-color: #60a5fa; /* blue-400 */
 }
 
 body {
