@@ -1,0 +1,43 @@
+.applicationMenuBar {
+  background-color: var(--color-background-secondary);
+  padding: 0.5rem 1rem;
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+}
+
+.menuButton {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--btn-hover-bg-color);
+  }
+}
+
+.searchContainer {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  position: relative; /* For command palette positioning */
+}
+
+.searchInput {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+}

@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { loadConfig } from "../configuration/config";
+import { AppConfig } from "../config";
 
-const config = loadConfig();
+const config = AppConfig;
 const workspace = config.workspace;
 
 function getAllMarkdownFiles(dir: string): string[] {

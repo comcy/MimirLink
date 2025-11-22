@@ -1,0 +1,44 @@
+.backlinksContainer {
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+  margin-top: 1rem;
+  background-color: var(--color-background-secondary);
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  ul {
+    padding-left: 20px;
+    list-style-type: "📑";
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  li a {
+    color: var(--color-text);
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    display: block;
+    background-color: var(--color-background);
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--color-background-hover);
+    }
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 0;
+  }
+}

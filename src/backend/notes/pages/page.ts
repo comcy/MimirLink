@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { loadConfig } from "../../configuration/config";
+import { AppConfig } from "../../config";
 import { generateFrontmatter } from "../base/frontmatter";
 
-const config = loadConfig();
+const config = AppConfig;
 const workspace = config.workspace;
 
 export function createPage(name: string, customDir?: string) {
