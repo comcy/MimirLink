@@ -1,0 +1,33 @@
+name: Frontend Validation
+
+on:
+  push:
+    branches:
+      - features/**
+      - master
+    paths:
+      - 'src/frontend/**'
+      - '.github/workflows/frontend-validation.yml'
+      - 'package.json'
+  pull_request:
+    branches:
+      - features/**
+    paths:
+      - 'src/frontend/**'
+      - '.github/workflows/frontend-validation.yml'
+      - 'package.json'
+
+jobs:
+  validate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build:frontend

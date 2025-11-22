@@ -1,0 +1,33 @@
+name: Backend Validation
+
+on:
+  push:
+    branches:
+      - features/**
+      - master
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-validation.yml'
+      - 'package.json'
+  pull_request:
+    branches:
+      - features/**
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-validation.yml'
+      - 'package.json'
+
+jobs:
+  validate-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build backend
+        run: npm run build:backend
