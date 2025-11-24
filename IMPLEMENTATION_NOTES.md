@@ -58,15 +58,18 @@ The frontend is a SolidJS application designed for a fluid and productive user e
 This is the application's centerpiece. It uses **CodeMirror 6** to provide a hybrid WYSIWYG experience, rendering Markdown as styled text when the cursor is not on the element.
 
 **Key Features & Implementation:**
--   **Hybrid Preview**: Supports headings, bold, italic, inline code, blockquotes, lists, and fenced code blocks.
--   **Active Line Logic**: The plugin uses `EditorView.decorations.of()` to apply decorations. It explicitly styles the active line to show raw Markdown source and skips all other processing on that line.
+-   **Hybrid Preview**: Supports headings, bold, italic, inline code, blockquotes, lists, tables, and fenced code blocks. Markdown control characters (like `**`, `|`) are hidden for a clean, WYSIWYG-like appearance.
+-   **Parser Logic**: The `unifiedDecorationPlugin` iterates through the syntax tree provided by the Markdown parser. It correctly handles nested contexts (e.g., bold inside blockquotes) by allowing the iterator to descend into block-level elements.
+-   **Active Line Logic**: The plugin explicitly styles the active line to show raw Markdown source and skips all other "live preview" processing on that line to allow for easy editing.
 -   **Custom Widgets**: Uses `WidgetType` to render custom elements like list bullets and language badges for code blocks.
 -   **Special Syntax**:
     -   Renders `:word:` style emoji and Confluence-style icons like `(!)`.
     -   Displays YAML frontmatter in a distinct visual frame.
-    -   Renders Markdown task list items (`- [ ] `) as clickable checkboxes.
--   **Slash Commands**: Supports `/today`, `/task`, and `/frontmatter` for quick insertion.
--   **Date Picker**: A `//` shortcut opens a floating date picker to insert dates in `[[YYYY-MM-DD]]` format. This is handled by a dedicated `datePickerPlugin` that decouples the editor from the date picker UI.
+    *   Renders Markdown task list items (`- [ ] `) as clickable checkboxes.
+-   **Shortcuts & Commands**:
+    -   `/slash` commands support quick insertion of elements like tasks and frontmatter.
+    -   `Mod-d` (`Ctrl+d` or `Cmd+d`) is implemented to duplicate the current line.
+    -   A `//` shortcut opens a floating date picker to insert dates in `[[YYYY-MM-DD]]` format.
 
 #### State Management (`src/frontend/src/store.ts`)
 Global state management is likely handled here, managing application-wide state such as the current file, file lists, search results, etc. (Note: This file was not fully analyzed and needs verification).
@@ -86,7 +89,7 @@ This is the root component that assembles the main layout, orchestrates UI compo
     -   Wire up the calendar to interact with notes (e.g., clicking a date opens the corresponding journal note).
     -   Load and save files using the backend API instead of local placeholders.
 -   **Editor Enhancements**:
-    -   Implement rendering for Links (`[text](url)`), Images (`![alt](url)`), Tables, and Horizontal Rules (`---`).
+    -   Implement rendering for Links (`[text](url)`) and Horizontal Rules (`---`).
 -   **Performance**:
     -   The regex-based `iconEmojiPlugin` could be slow on large files. It could be optimized by integrating it into the main syntax tree parser.
 -   **Build on Foundation**: With the backend and editor foundation in place, work can continue on the more advanced features outlined in `IDEA.md`, such as the query engine and advanced search.

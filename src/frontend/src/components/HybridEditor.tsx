@@ -309,7 +309,6 @@ function unifiedDecorationPlugin() {
 
               pos = line.to + 1;
             }
-            return false;
           }
 
           if (node.name === "Frontmatter") {
