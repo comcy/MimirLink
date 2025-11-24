@@ -3,8 +3,8 @@
 }
 
 /* CodeMirror Editor Base Styles */
-.cm-editor {
-  font-family: "Fira Code", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+.cm-editor, .cm-editor * { /* Apply to editor and all children */
+  font-family: "Fira Code", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji" !important;
   font-variant-ligatures: common-ligatures;
 }
 
