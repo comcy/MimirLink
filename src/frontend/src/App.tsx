@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show, onCleanup, createMemo } from 'solid-js';
+import { createEffect, createSignal, Show, onCleanup } from 'solid-js';
 import { Calendar } from './components/Calendar';
 import { DatePicker } from './components/DatePicker';
 import { FileList } from './components/FileList';
@@ -7,7 +7,6 @@ import { IconSidebar } from './components/IconSidebar';
 import { MenuBar } from './components/MenuBar';
 import { ApplicationMenuBar } from './components/ApplicationMenuBar';
 import { SearchResults } from './components/SearchResults';
-import { TagsDisplay } from './components/TagsDisplay';
 import { AllTagsView } from './components/AllTagsView';
 import { TasksDisplay } from './components/TasksDisplay';
 import { WelcomePage } from './components/WelcomePage';
@@ -23,20 +22,6 @@ function App() {
   const [datePickerPosition, setDatePickerPosition] = createSignal({ top: 0, left: 0 });
   const [datePickerCallback, setDatePickerCallback] = createSignal<(date: string) => void>(() => { });
   const [isSidebarOpen, setSidebarOpen] = createSignal(true);
-
-  const activeNoteTags = createMemo(() => {
-    const path = store.activeNotePath();
-    if (!path) return [];
-
-    const files = store.files();
-    if (!files) return [];
-
-    const noteMeta =
-      files.pages.find(p => p.path === path) ||
-      files.journals.find(j => j.path === path);
-
-    return noteMeta?.tags ?? [];
-  });
 
   createEffect(() => {
     document.body.className = theme();

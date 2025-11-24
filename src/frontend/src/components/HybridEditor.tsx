@@ -583,10 +583,12 @@ export function HybridEditor(props: HybridEditorProps) {
               preventDefault: true, // Prevent default browser behavior for Ctrl+d (bookmarking)
             }
           ]),
-          markdown({
-            base: markdownLanguage,
-            codeLanguages: languages,
-            extensions: [GFM, yamlFrontmatter]
+          yamlFrontmatter({ // Top-level language is YAML frontmatter
+            content: markdown({ // The content inside is markdown
+                base: markdownLanguage,
+                codeLanguages: languages,
+                extensions: [GFM] // And THIS markdown parser needs GFM for tables
+            })
           }),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           lineNumbers(),
