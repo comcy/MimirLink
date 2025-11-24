@@ -90,3 +90,24 @@ This is the root component that assembles the main layout, orchestrates UI compo
 -   **Performance**:
     -   The regex-based `iconEmojiPlugin` could be slow on large files. It could be optimized by integrating it into the main syntax tree parser.
 -   **Build on Foundation**: With the backend and editor foundation in place, work can continue on the more advanced features outlined in `IDEA.md`, such as the query engine and advanced search.
+
+## 6. Table Rendering in Hybrid Editor
+
+A significant effort was made to implement live preview rendering for Markdown tables directly within the CodeMirror 6 editor. This was a complex task due to the interaction between the Markdown parser and CodeMirror's decoration API.
+
+### Final Approach
+
+The final, successful implementation uses a combination of a correctly configured parser, a Flexbox-based CSS layout, and a careful application of CodeMirror `Decoration` objects.
+
+1.  **Parser Configuration:** The root cause of many initial problems was an incorrect parser setup. The final configuration in `HybridEditor.tsx` correctly uses `@codemirror/lang-markdown` as the base language, with `GFM` (from `@lezer/markdown`) and `yamlFrontmatter` as extensions. This ensures that the parser correctly identifies table structures in the document and produces the right syntax tree.
+
+2.  **Decoration Logic (`unifiedDecorationPlugin`):** The plugin iterates through the syntax tree and applies decorations to style the table:
+    *   **Hiding Delimiters:** All Markdown delimiters (`|` characters between cells and the `|---|` separator line) are hidden using `Decoration.replace({})`. This was a primary source of rendering errors. The `Ranges must be added sorted` error was resolved by carefully using `startSide` properties on adjacent decorations to tell CodeMirror their intended rendering order.
+    *   **Applying Classes:** `Decoration.line` is used to apply `.cm-table-row` or `.cm-table-header` classes to the `div` for each line. `Decoration.mark` is used to wrap cell content (`TableCell` nodes), including their padding spaces, in spans with `.cm-table-cell` or `.cm-table-header-cell` classes.
+
+3.  **CSS Layout (`editor-styles.css`):** The `display: table` model proved incompatible with CodeMirror's DOM structure. The final solution uses a Flexbox model:
+    *   Each table row (`.cm-table-row`, `.cm-table-header`) is a `display: flex` container.
+    *   Each cell (`.cm-table-cell`, `.cm-table-header-cell`) is a `flex: 1` item, allowing columns to share space.
+    *   Borders, padding, and horizontal margins are applied directly to the line and cell elements to create a clear, grid-like appearance for the entire table block.
+
+4.  **Style Overrides:** Specific and aggressive CSS overrides were necessary to prevent CodeMirror's `defaultHighlightStyle` from applying unwanted `text-decoration: underline` and `font-weight: bold` to text and spaces within the table header. This was achieved by targeting any `span` within a header cell (`.cm-table-header-cell *`) and forcing the desired `font-weight` and `text-decoration`.

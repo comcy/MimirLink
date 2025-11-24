@@ -174,6 +174,10 @@ function createNoteStore() {
   // --- Backlinks State ---
   const [backlinks] = createResource(activeNotePath, fetchBacklinks);
 
+  // --- Tag State ---
+  const [selectedTag, setSelectedTag] = createSignal<string | null>(null);
+
+
   // --- Derived State (Memos) ---
   const activeNote = createMemo(() => openNotes().find(note => note.path === activeNotePath()));
   const activeContent = createMemo(() => activeNote()?.content ?? '');
@@ -417,6 +421,7 @@ function createNoteStore() {
     selectedCommandIndex,
     backlinks,
     tasks,
+    selectedTag,
     // Actions
     refetchFiles,
     refetchTasks,
@@ -436,6 +441,7 @@ function createNoteStore() {
     saveCurrentNote,
     performSearch,
     toggleTaskCompletion,
+    setSelectedTag,
     // Computed
     activeNote,
     activeContent,

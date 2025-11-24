@@ -2,6 +2,7 @@ import type { Completion, CompletionResult } from "@codemirror/autocomplete";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { GFM } from "@lezer/markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
@@ -178,6 +179,78 @@ function unifiedDecorationPlugin() {
           }
 
           const isSameLine = (from: number, to: number) => view.state.doc.lineAt(from).number === view.state.doc.lineAt(to).number;
+
+          if (node.name === "Table") {
+            let alignments: ('left' | 'center' | 'right' | 'default')[] = [];
+
+            // Find the delimiter line to determine alignments
+            let delimNode = node.node.firstChild;
+            while(delimNode && delimNode.name !== "TableDelimiter") {
+                delimNode = delimNode.nextSibling;
+            }
+
+            if (delimNode) {
+                const lineText = view.state.doc.sliceString(delimNode.from, delimNode.to);
+                const parts = lineText.split('|').filter(p => p.includes('-'));
+                alignments = parts.map(part => {
+                    const trimmed = part.trim();
+                    if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
+                    if (trimmed.startsWith(':')) return 'left';
+                    if (trimmed.endsWith(':')) return 'right';
+                    return 'default';
+                });
+            }
+
+            // Decorate the rows
+            for (let rowNode = node.node.firstChild; rowNode; rowNode = rowNode.nextSibling) {
+                const isHeader = rowNode.name === "TableHeader";
+                if (isHeader || rowNode.name === "TableRow") {
+                    const line = view.state.doc.lineAt(rowNode.from);
+                    const rowClass = isHeader ? "cm-table-header" : "cm-table-row";
+                    builder.push(Decoration.line({ attributes: { class: rowClass } }).range(line.from));
+
+                    let cellIndex = 0;
+                    let cellNode = rowNode.firstChild;
+                    while(cellNode) {
+                        if (cellNode.name === "TableCell") {
+                            let from = cellNode.from;
+                            let to = cellNode.to;
+
+                            // Expand to include leading space
+                            if (view.state.doc.sliceString(from - 1, from) === ' ') {
+                                from = from - 1;
+                            }
+                            // Expand to include trailing space
+                            if (view.state.doc.sliceString(to, to + 1) === ' ') {
+                                to = to + 1;
+                            }
+
+                            const cellClass = isHeader ? "cm-table-header-cell" : "cm-table-cell";
+                            const alignment = alignments[cellIndex] || 'default';
+                            const alignmentClass = `cm-table-align-${alignment}`;
+                            const finalCellClass = `${cellClass} ${alignmentClass}`;
+                            builder.push(Decoration.mark({
+                                class: finalCellClass,
+                                startSide: 1 // Open after the delimiter replace
+                            }).range(from, to)); // Use expanded range
+                            cellIndex++;
+                        }
+                        if (cellNode.name === "TableDelimiter") {
+                            builder.push(Decoration.replace({
+                                startSide: -1 // Open before the cell mark
+                            }).range(cellNode.from, cellNode.to));
+                        }
+                        cellNode = cellNode.nextSibling;
+                    }
+                }
+                if (rowNode.name === "TableDelimiter") { // This is the |---|---| line
+                    const line = view.state.doc.lineAt(rowNode.from);
+                    builder.push(Decoration.line({ attributes: { class: "cm-table-separator" } }).range(line.from));
+                    builder.push(Decoration.replace({startSide: -1, endSide: 1}).range(rowNode.from, rowNode.to)); // Also replace content
+                }
+            }
+            return false;
+          }
 
           if (node.name === "Task") {
             const taskMarker = node.node.firstChild;
@@ -487,13 +560,34 @@ export function HybridEditor(props: HybridEditorProps) {
                 return true;
               },
               preventDefault: true,
+            },
+            {
+              key: "Mod-d",
+              run: (view: EditorView) => {
+                const { state, dispatch } = view;
+                const { main } = state.selection;
+                const line = state.doc.lineAt(main.head); // Get the current line object
+                const lineContent = state.doc.sliceString(line.from, line.to); // Get content without newline
+
+                // Insert new line with content and a newline character
+                dispatch({
+                  changes: {
+                    from: line.to, // Insert after the current line
+                    to: line.to,
+                    insert: "\n" + lineContent,
+                  },
+                  selection: { anchor: line.to + 1 + lineContent.length }, // Place cursor at end of duplicated line
+                  scrollIntoView: true,
+                });
+                return true; // Indicate that the command was handled
+              },
+              preventDefault: true, // Prevent default browser behavior for Ctrl+d (bookmarking)
             }
           ]),
-          yamlFrontmatter({
-            content: markdown({
-              base: markdownLanguage,
-              codeLanguages: languages,
-            })
+          markdown({
+            base: markdownLanguage,
+            codeLanguages: languages,
+            extensions: [GFM, yamlFrontmatter]
           }),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           lineNumbers(),

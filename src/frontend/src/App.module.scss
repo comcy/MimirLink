@@ -51,7 +51,11 @@
   position: relative;
   overflow-y: auto;
   /* This is the key: only this container will scroll */
+}
 
+.placeholder {
+  padding: 1rem;
+  color: var(--text-color-secondary);
 }
 
 .backdrop {

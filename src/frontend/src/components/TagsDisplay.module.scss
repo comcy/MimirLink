@@ -1,4 +1,28 @@
 .container {
   padding: 1rem;
   color: var(--text-color);
+  border-top: 1px solid var(--border-color);
+}
+
+.tagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.tagChip {
+  background-color: var(--accent-color-light);
+  color: var(--accent-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--accent-color);
+    color: var(--bg-color);
+  }
 }

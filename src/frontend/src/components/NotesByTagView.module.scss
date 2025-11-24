@@ -1,0 +1,61 @@
+.container {
+  /* No special styles needed for the container itself now */
+}
+
+.backLink {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  display: inline-block;
+  border-radius: 4px; /* Fallback from var(--border-radius-sm) */
+  padding: 0.2rem;
+
+  &:hover {
+    color: var(--accent-color);
+  }
+
+  &:focus, &:focus-visible {
+    outline: 1px solid var(--accent-color);
+  }
+}
+
+.noteList {
+  list-style: none; /* Remove default list styling */
+  padding: 0;      /* Remove default padding */
+  margin: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.noteItem {
+  color: var(--color-text);
+  background-color: var(--color-background);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: flex; /* Use flexbox for icon and text alignment */
+  align-items: center; /* Vertically align icon and text */
+  gap: 0.5rem; /* Space between icon and text */
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    background-color: var(--color-background-hover);
+  }
+  
+  &:focus, &:focus-visible {
+    outline: 1px solid var(--accent-color);
+    background-color: var(--color-background-hover);
+  }
+}
+
+.noteIcon {
+  font-size: 1.2em; /* Adjust size of the emoji */
+  line-height: 1; /* Ensure proper vertical alignment */
+  flex-shrink: 0; /* Prevent the icon from shrinking */
+}

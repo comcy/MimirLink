@@ -12,7 +12,6 @@
 .cm-gutters {
   min-width: 3.5em;
   background-color: #f3f4f6; /* Tailwind's gray-100 */
-  /* Pre-allocate space for line numbers */
 }
 
 @media (max-width: 768px) {
@@ -21,213 +20,109 @@
   }
 }
 
-.cm-heading-1 {
-  font-size: 2.5rem;
-  font-weight: 600;
-  padding-bottom: 0.5rem;
-  margin-top: 1rem;
-  font-variant-ligatures: common-ligatures;
-}
+/* Other CM styles ... */
+.cm-heading-1 { font-size: 2.5rem; font-weight: 600; padding-bottom: 0.5rem; margin-top: 1rem; }
+.cm-heading-2 { font-size: 2rem; font-weight: 600; padding-bottom: 0.4rem; margin-top: 0.8rem; }
+.cm-heading-3 { font-size: 1.75rem; font-weight: 600; }
+.cm-heading-4 { font-size: 1.5rem; font-weight: 600; }
+.cm-heading-5 { font-size: 1.25rem; font-weight: 600; }
+.cm-heading-6 { font-size: 1rem; font-weight: 600; }
+.cm-emphasis { font-style: italic; }
+.cm-strong-emphasis { font-weight: bold; }
+.cm-bullet { color: #888; margin-right: 0.5em; }
+.cm-blockquote { border-left: 3px solid #007bff; background-color: #f0f7ff; color: #444; margin: 0 8px; }
+.cm-code-block { background-color: #f6f8fa; font-family: "Fira Code", monospace; font-size: 0.9em; padding-left: 1em; margin: 0 8px; border-left: solid 3px #444; border-right: solid 3px #444; }
+.cm-inline-code { background-color: #f0f0f0; font-family: "Fira Code", monospace; font-size: 0.85em; padding: 0.2em 0.4em; border-radius: 3px; }
+.cm-task-checkbox { margin-right: 0.5em; vertical-align: middle; width: 1.2em; height: 1.2em; }
+.cm-frontmatter { display: block; position: relative; background-color: rgba(255, 0, 255, 0.05); }
+.cm-wikilink { color: var(--color-link); text-decoration: underline; text-decoration-style: dotted; cursor: pointer; }
+.cm-image { max-width: 100%; height: auto; display: block; margin: 1em 0; }
 
-.cm-heading-2 {
-  font-size: 2rem;
-  font-weight: 600;
-  padding-bottom: 0.4rem;
-  margin-top: 0.8rem;
-  font-variant-ligatures: common-ligatures;
-}
 
-.cm-heading-3 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-heading-4 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-heading-5 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  font-variant-ligatures: common-ligatures;
-}
-
+/* --- STYLE OVERRIDES --- */
+.cm-heading-2,
+.cm-heading-3,
+.cm-heading-4,
+.cm-heading-5,
 .cm-heading-6 {
-  font-size: 1rem;
-  font-weight: 600;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-emphasis {
-  font-style: italic;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-strong-emphasis {
-  font-weight: bold;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-bullet {
-  color: #888;
-  margin-right: 0.5em;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-blockquote {
-  border-left: 3px solid #007bff;
-  background-color: #f0f7ff;
-  color: #444;
-  margin-left: 8px;
-  margin-right: 8px;
-  font-variant-ligatures: common-ligatures;
-}
-
-/* Code Block Styling */
-.cm-code-block {
-  background-color: #f6f8fa;
-  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  font-size: 0.9em;
-  padding-left: 1em;
-  margin-left: 8px;
-  margin-right: 8px;
-  border-left: solid 3px #444;
-  border-right: solid 3px #444;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-code-block-first-line {
-  position: relative;
-  padding-top: 1.5em;
-}
-
-.cm-language-badge {
-  position: absolute;
-  top: 0;
-  right: 0.5em;
-  background-color: #fff;
-  color: #666;
-  font-size: 0.7em;
-  font-style: bold italic;
-  padding: 0.1em 0.5em;
-  border-radius: 0 0 4px 4px;
-  z-index: 1;
-}
-
-.cm-active-line {
-  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-inline-code {
-  background-color: #f0f0f0;
-
-  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  font-size: 0.85em;
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-variant-ligatures: common-ligatures;
-}
-
-.cm-task-checkbox {
-  margin-right: 0.5em;
-  vertical-align: middle;
-  width: 1.2em;
-  height: 1.2em;
-}
-
-.cm-frontmatter {
-  display: block;
-  position: relative;
-  background-color: rgba(255, 0, 255, 0.05);
-}
-
-.cm-frontmatter-first-line {
-  position: relative;
-  /* To position the badge */
-}
-
-.cm-frontmatter-first-line::before {
-  content: attr(data-frontmatter-badge);
-  position: absolute;
-  top: 0;
-  right: 0.5em;
-  background-color: #ff00ff;
-  color: white;
-  font-size: 0.7em;
-  font-style: italic;
-  padding: 0.1em 0.5em;
-  border-radius: 0 0 4px 4px;
-  z-index: 1;
-}
-
-.cm-mark-hidden {
-  display: none;
-}
-
-.cm-wikilink {
-  color: var(--color-link);
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  cursor: pointer;
-}
-
-/* --- Mobile Optimizations --- */
-@media (max-width: 768px) {
-  .cm-heading-1 {
-    font-size: 1.8rem;
-  }
-  .cm-heading-2 {
-    font-size: 1.5rem;
-  }
-  .cm-heading-3 {
-    font-size: 1.3rem;
-  }
-  .cm-heading-4 {
-    font-size: 1.2rem;
-  }
+    text-decoration: none !important;
 }
 
 
-/* Dark Theme Styles */
-.dark .cm-gutters {
-  background-color: #1a202c;
-  color: #a0aec0;
-  border-right: 1px solid #4a5568;
+/* Dark Theme Overrides */
+.dark .cm-gutters { background-color: #1a202c; color: #a0aec0; border-right: 1px solid #4a5568; }
+.dark .cm-frontmatter { background-color: #923589; color: #e2e8f0; }
+.dark .cm-code-block { background-color: #c2c2c2; border-left-color: #4a5568; border-right-color: #4a5568; }
+.dark .cm-blockquote { border-left-color: #63b3ed; background-color: #001930; color: #e2e8f0; }
+.dark .cm-inline-code { background-color: #2d3748; }
+
+/* --- Table Styles for Live Preview (FLEXBOX) --- */
+.cm-line.cm-table-row,
+.cm-line.cm-table-header {
+    display: flex !important;
+    margin: 0 16px !important; /* Horizontal margin */
+    padding: 0 !important;
+    line-height: initial !important;
+    border-right: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.cm-line.cm-table-header {
+    margin-top: 1.5em; /* Vertical margin for the whole table */
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-color-sidebar);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+.cm-line.cm-table-row:last-of-type {
+    margin-bottom: 1.5em; /* Vertical margin for the whole table */
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
 }
 
-.dark .cm-frontmatter {
-  background-color: #923589;
-  /* A slightly lighter dark background */
-  color: #e2e8f0;
-  /* A lighter text color for better contrast */
+
+.cm-table-cell,
+.cm-table-header-cell {
+    flex: 1;
+    padding: 0.6em 1em;
+    border-right: 1px solid var(--border-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cm-table-cell:last-child,
+.cm-table-header-cell:last-child {
+    border-right: none;
 }
 
-.dark .cm-code-block {
-  background-color: #c2c2c2;
-  /* Even lighter gray for code blocks */
-  border-left: solid 3px #4a5568;
-  border-right: solid 3px #4a5568;
+
+.cm-table-header-cell {
+    font-weight: 600 !important;
 }
 
-.dark .cm-blockquote {
-  border-left: 3px solid #63b3ed;
-  /* Lighter blue border */
-  background-color: #001930;
-  /* Lighter blue background */
-  color: #e2e8f0;
+/* Fix for specific CodeMirror highlight style applying unwanted styles to header cells */
+.cm-table-cell *,
+.cm-table-header-cell * {
+    text-decoration: none !important;
+    font-weight: inherit !important;
 }
 
-.dark .cm-inline-code {
-  background-color: #2d3748;
+/* Re-apply bold specifically to header cell text, overriding the above rule */
+.cm-table-header-cell, .cm-table-header-cell * {
+    font-weight: 600 !important;
 }
 
-.cm-image {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 1em 0;
+.cm-line.cm-table-separator {
+    display: none !important; /* Truly hide the separator line */
+    height: 0 !important; /* Ensure no height */
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important; /* Ensure no border */
 }
+
+
+/* Alignment classes */
+.cm-table-align-left { text-align: left; }
+.cm-table-align-center { text-align: center; }
+.cm-table-align-right { text-align: right; }
+.cm-table-align-default { text-align: left; }

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show, onCleanup } from 'solid-js';
+import { createEffect, createSignal, Show, onCleanup, createMemo } from 'solid-js';
 import { Calendar } from './components/Calendar';
 import { DatePicker } from './components/DatePicker';
 import { FileList } from './components/FileList';
@@ -8,6 +8,7 @@ import { MenuBar } from './components/MenuBar';
 import { ApplicationMenuBar } from './components/ApplicationMenuBar';
 import { SearchResults } from './components/SearchResults';
 import { TagsDisplay } from './components/TagsDisplay';
+import { AllTagsView } from './components/AllTagsView';
 import { TasksDisplay } from './components/TasksDisplay';
 import { WelcomePage } from './components/WelcomePage';
 import { NewPageDialog } from './components/NewPageDialog'; // Import the new dialog
@@ -22,6 +23,20 @@ function App() {
   const [datePickerPosition, setDatePickerPosition] = createSignal({ top: 0, left: 0 });
   const [datePickerCallback, setDatePickerCallback] = createSignal<(date: string) => void>(() => { });
   const [isSidebarOpen, setSidebarOpen] = createSignal(true);
+
+  const activeNoteTags = createMemo(() => {
+    const path = store.activeNotePath();
+    if (!path) return [];
+
+    const files = store.files();
+    if (!files) return [];
+
+    const noteMeta =
+      files.pages.find(p => p.path === path) ||
+      files.journals.find(j => j.path === path);
+
+    return noteMeta?.tags ?? [];
+  });
 
   createEffect(() => {
     document.body.className = theme();
@@ -95,7 +110,7 @@ function App() {
             <SearchResults />
           </Show>
           <Show when={store.activeSidebarView() === 'tags'}>
-            <TagsDisplay />
+            <AllTagsView />
           </Show>
           <Show when={store.activeSidebarView() === 'tasks'}>
             <Calendar />
@@ -113,7 +128,9 @@ function App() {
                 setValue={store.updateActiveContent}
                 onShowDatePicker={showDatePicker}
               />
-              <BacklinksDisplay backlinks={store.backlinks} />
+              <div class={styles.metaPanel}>
+                <BacklinksDisplay backlinks={store.backlinks} />
+              </div>
             </Show>
             <Show when={isDatePickerVisible()}>
               <DatePicker
